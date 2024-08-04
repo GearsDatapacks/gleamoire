@@ -1,15 +1,11 @@
 import argv
 import gleam/dict
-import gleam/dynamic
-import gleam/http.{Get}
 import gleam/http/request
-import gleam/http/response
 import gleam/httpc
 import gleam/io
 import gleam/json
 import gleam/option.{type Option, None, Some}
 import gleam/package_interface
-import gleam/result.{try}
 import gleam/string
 import gleamyshell
 import glint
@@ -52,7 +48,7 @@ fn document() -> glint.Command(Nil) {
     [module, ..] ->
       io.println(
         "Help on the (type of item) in package (name of the package):"
-        <> resolve_input(module)
+        <> resolve_input(module),
       )
   }
 }
@@ -66,7 +62,7 @@ fn resolve_input(module_item: String) -> String {
   let assert [main_module, ..sub] = string.split(module_path, on: "/")
 
   case main_module {
-    "" -> 
+    "" ->
       panic as "I did not understand what module you are reffering to (should respect main/module.item syntax)"
     _ -> Nil
   }
@@ -117,9 +113,10 @@ fn get_package_interface(
       // Build if dep package
       let dep_interface = build_package_interface(dep_path)
 
-      simplifile.create_directory_all(gleamoire_cache <> module_name)
-      simplifile.create_file(package_interface_path)
-      simplifile.write(package_interface_path, dep_interface)
+      let assert Ok(_) =
+        simplifile.create_directory_all(gleamoire_cache <> module_name)
+      let assert Ok(_) = simplifile.create_file(package_interface_path)
+      let assert Ok(_) = simplifile.write(package_interface_path, dep_interface)
 
       dep_interface
     }
@@ -129,13 +126,14 @@ fn get_package_interface(
         request.to(hexdocs_url <> module_name <> "/package-interface.json")
 
       let assert Ok(resp) = httpc.send(hex_req)
-      simplifile.create_directory_all(gleamoire_cache <> module_name)
-      simplifile.create_file(package_interface_path)
-      simplifile.write(package_interface_path, resp.body)
+      let assert Ok(_) =
+        simplifile.create_directory_all(gleamoire_cache <> module_name)
+      let assert Ok(_) = simplifile.create_file(package_interface_path)
+      let assert Ok(_) = simplifile.write(package_interface_path, resp.body)
 
       resp.body
     }
-    _, _ -> panic as "Unable to find " <> module_name <> "'s interface."
+    _, _ -> panic as { "Unable to find " <> module_name <> "'s interface." }
   }
 }
 
@@ -153,6 +151,7 @@ fn build_package_interface(path: String) -> String {
         gleamyshell.execute("gleam", in: path, args: [
           "export", "package-interface", "--out", "package-interface.json",
         ])
+      Nil
     }
     _ -> {
       let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
@@ -161,6 +160,7 @@ fn build_package_interface(path: String) -> String {
           "export", "package-interface", "--out", "package-interface.json",
         ])
       let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
+      Nil
     }
   }
 

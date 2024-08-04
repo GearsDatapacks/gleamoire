@@ -29,6 +29,7 @@ packages = [
 
 [requirements]
 argv = { version = ">= 1.0.2 and < 2.0.0" }
+gleam_http = { version = ">= 3.6.0 and < 4.0.0" }
 gleam_httpc = { version = ">= 2.2.0 and < 3.0.0" }
 gleam_json = { version = ">= 1.0.1 and < 2.0.0" }
 gleam_package_interface = { version = ">= 1.1.0 and < 2.0.0" }
@@ -40,3 +41,4 @@ glint = { version = ">= 1.0.1 and < 2.0.0" }
 glitzer = { version = ">= 1.1.1 and < 2.0.0" }
 lustre = { version = ">= 4.3.2 and < 5.0.0" }
 simplifile = { version = ">= 2.0.1 and < 3.0.0" }
+tom = { version = ">= 1.0.1 and < 2.0.0" }
