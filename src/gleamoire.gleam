@@ -6,6 +6,7 @@ import gleam/io
 import gleam/json
 import gleam/option.{type Option, None, Some}
 import gleam/package_interface
+import gleam/result
 import gleam/string
 import gleamyshell
 import glint
@@ -45,11 +46,7 @@ fn document() -> glint.Command(Nil) {
       io.println(
         "Please specify a module to document. See gleamoire --help for more information",
       )
-    [module, ..] ->
-      io.println(
-        "Help on the (type of item) in package (name of the package):"
-        <> resolve_input(module),
-      )
+    [module, ..] -> io.println(resolve_input(module))
   }
 }
 
@@ -184,7 +181,54 @@ fn get_docs(
   case item, module_interface.documentation {
     None, [] -> todo as "print out README.md"
     None, module_documentation -> string.join(module_documentation, "\n")
-    Some(_item), _ -> todo as "item specified"
+    Some(item), _ -> document_item(module_interface, item)
+  }
+}
+
+type ModuleItem {
+  NoItem
+  Value(documentation: String)
+  Type(documentation: String)
+  TypeAndValue(type_docs: String, value_docs: String)
+}
+
+fn document_item(
+  module_interface: package_interface.Module,
+  name: String,
+) -> String {
+  let item = get_item(module_interface, name)
+  case item {
+    NoItem -> panic as { "No item has been found with the name " <> name }
+    Value(docs) | Type(docs) -> docs
+    TypeAndValue(_, _) -> todo as "Distinguish types and values"
+  }
+}
+
+fn get_item(
+  module_interface: package_interface.Module,
+  name: String,
+) -> ModuleItem {
+  let type_ =
+    module_interface.types
+    |> dict.get(name)
+    |> result.map(fn(t) { t.documentation |> option.unwrap("") })
+    |> result.try_recover(fn(_) {
+      dict.get(module_interface.type_aliases, name)
+      |> result.map(fn(t) { t.documentation |> option.unwrap("") })
+    })
+  let value =
+    module_interface.constants
+    |> dict.get(name)
+    |> result.map(fn(t) { t.documentation |> option.unwrap("") })
+    |> result.try_recover(fn(_) {
+      dict.get(module_interface.functions, name)
+      |> result.map(fn(t) { t.documentation |> option.unwrap("") })
+    })
+  case type_, value {
+    Error(_), Error(_) -> NoItem
+    Ok(type_docs), Error(_) -> Type(type_docs)
+    Error(_), Ok(value_docs) -> Value(value_docs)
+    Ok(type_docs), Ok(value_docs) -> TypeAndValue(type_docs:, value_docs:)
   }
 }
 
