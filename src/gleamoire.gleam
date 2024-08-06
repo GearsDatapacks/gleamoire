@@ -193,7 +193,8 @@ fn document_item(
   let type_ = dict.get(simple.types, name)
   let value = dict.get(simple.values, name)
   case type_, value {
-    Error(_), Error(_) -> panic as {"No item has been found with the name " <> name}
+    Error(_), Error(_) ->
+      panic as { "No item has been found with the name " <> name }
     Ok(type_docs), Error(_) -> type_docs
     Error(_), Ok(value_docs) -> value_docs
     Ok(_), Ok(_) -> todo as "Distinguish types and values with the same name"
@@ -244,8 +245,8 @@ fn simplify_module_interface(interface: package_interface.Module) {
           |> dict.from_list(),
       )
     })
-    let values = dict.merge(values, constructors)
-    SimpleModule(types:, values:)
+  let values = dict.merge(values, constructors)
+  SimpleModule(types:, values:)
 }
 
 pub fn main() {
