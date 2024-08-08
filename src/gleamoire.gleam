@@ -4,6 +4,7 @@ import gleam/http/request
 import gleam/httpc
 import gleam/io
 import gleam/json
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/package_interface
 import gleam/string
@@ -45,11 +46,7 @@ fn document() -> glint.Command(Nil) {
       io.println(
         "Please specify a module to document. See gleamoire --help for more information",
       )
-    [module, ..] ->
-      io.println(
-        "Help on the (type of item) in package (name of the package):"
-        <> resolve_input(module),
-      )
+    [module, ..] -> io.println(resolve_input(module))
   }
 }
 
@@ -184,8 +181,72 @@ fn get_docs(
   case item, module_interface.documentation {
     None, [] -> todo as "print out README.md"
     None, module_documentation -> string.join(module_documentation, "\n")
-    Some(_item), _ -> todo as "item specified"
+    Some(item), _ -> document_item(module_interface, item)
   }
+}
+
+fn document_item(
+  module_interface: package_interface.Module,
+  name: String,
+) -> String {
+  let simple = simplify_module_interface(module_interface)
+  let type_ = dict.get(simple.types, name)
+  let value = dict.get(simple.values, name)
+  case type_, value {
+    Error(_), Error(_) ->
+      panic as { "No item has been found with the name " <> name }
+    Ok(type_docs), Error(_) -> type_docs
+    Error(_), Ok(value_docs) -> value_docs
+    Ok(_), Ok(_) -> todo as "Distinguish types and values with the same name"
+  }
+}
+
+type SimpleModule {
+  SimpleModule(
+    types: dict.Dict(String, String),
+    values: dict.Dict(String, String),
+  )
+}
+
+fn simplify_module_interface(interface: package_interface.Module) {
+  let types =
+    interface.types
+    |> dict.map_values(fn(_, type_) { type_.documentation |> option.unwrap("") })
+  let types =
+    dict.merge(
+      types,
+      interface.type_aliases
+        |> dict.map_values(fn(_, alias) {
+          alias.documentation |> option.unwrap("")
+        }),
+    )
+
+  let values =
+    interface.constants
+    |> dict.map_values(fn(_, constant) {
+      constant.documentation |> option.unwrap("")
+    })
+  let values =
+    dict.merge(
+      values,
+      interface.constants
+        |> dict.map_values(fn(_, constant) {
+          constant.documentation |> option.unwrap("")
+        }),
+    )
+  let constructors =
+    list.fold(dict.values(interface.types), dict.new(), fn(acc, type_) {
+      dict.merge(
+        acc,
+        type_.constructors
+          |> list.map(fn(cons) {
+            #(cons.name, cons.documentation |> option.unwrap(""))
+          })
+          |> dict.from_list(),
+      )
+    })
+  let values = dict.merge(values, constructors)
+  SimpleModule(types:, values:)
 }
 
 pub fn main() {
