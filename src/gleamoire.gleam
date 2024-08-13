@@ -10,7 +10,6 @@ import gleam/package_interface
 import gleam/result
 import gleam/string
 import gleamyshell
-import glint
 import glitzer/spinner
 import simplifile
 import tom
@@ -19,16 +18,70 @@ const default_cache = ".cache/gleamoire"
 
 const hexdocs_url = "https://hexdocs.pm/"
 
-fn type_flag() -> glint.Flag(Bool) {
-  glint.bool_flag("t")
-  |> glint.flag_default(False)
-  |> glint.flag_help("Print the type associated with the given name")
+type Args {
+  Help
+  Document(module: String, print_mode: PrintMode)
 }
 
-fn value_flag() -> glint.Flag(Bool) {
-  glint.bool_flag("v")
-  |> glint.flag_default(False)
-  |> glint.flag_help("Print the value associated with the given name")
+fn parse_args(args: List(String)) -> Result(Args, String) {
+  use parsed <- result.try(do_parse_args(
+    args,
+    Parsed(value_flag: False, type_flag: False, help_flag: False, module: None),
+  ))
+  use print_mode <- result.try(case parsed.type_flag, parsed.value_flag {
+    False, False -> Ok(Unspecified)
+    True, False -> Ok(Type)
+    False, True -> Ok(Value)
+    True, True -> Error("Only one of -t and -v may be specified")
+  })
+  case parsed {
+    Parsed(help_flag: True, ..) -> Ok(Help)
+    Parsed(module: Some(module), ..) -> Ok(Document(module, print_mode))
+    Parsed(module: None, help_flag: False, ..) ->
+      Error(
+        "Please specify a module to document. See gleamoire --help for more information",
+      )
+  }
+}
+
+type Parsed {
+  Parsed(
+    value_flag: Bool,
+    type_flag: Bool,
+    help_flag: Bool,
+    module: Option(String),
+  )
+}
+
+fn do_parse_args(args: List(String), parsed: Parsed) -> Result(Parsed, String) {
+  case args {
+    [] -> Ok(parsed)
+    [arg, ..args] -> {
+      use parsed <- result.try(case arg {
+        "-t" ->
+          case parsed.type_flag {
+            True -> Error("Flags can only be specified once")
+            False -> Ok(Parsed(..parsed, type_flag: True))
+          }
+        "-v" ->
+          case parsed.value_flag {
+            True -> Error("Flags can only be specified once")
+            False -> Ok(Parsed(..parsed, value_flag: True))
+          }
+        "--help" | "-h" ->
+          case parsed.help_flag {
+            True -> Error("Flags can only be specified once")
+            False -> Ok(Parsed(..parsed, help_flag: True))
+          }
+        _ ->
+          case parsed.module {
+            Some(_) -> Error("Please only specify one module to document")
+            None -> Ok(Parsed(..parsed, module: Some(arg)))
+          }
+      })
+      do_parse_args(args, parsed)
+    }
+  }
 }
 
 type PrintMode {
@@ -37,30 +90,20 @@ type PrintMode {
   Value
 }
 
-fn document() -> glint.Command(Result(String, String)) {
-  use <- glint.command_help("Documents a gleam module, in the command line!")
+const help_text = "Documents a gleam module, type or value, in the command line!
 
-  use print_type <- glint.flag(type_flag())
-  use print_value <- glint.flag(value_flag())
+Usage:
+gleamoire <module> [flags]
 
-  use _, args, flags <- glint.command()
+Flags:
+--help, -h   Print this help text
+-t           Print the type associated with the given name
+-v           Print the value associated with the given name"
 
-  let assert Ok(print_type) = print_type(flags)
-  let assert Ok(print_value) = print_value(flags)
-
-  use print_mode <- result.try(case print_type, print_value {
-    False, False -> Ok(Unspecified)
-    True, False -> Ok(Type)
-    False, True -> Ok(Value)
-    True, True -> Error("Only one of --t and --v may be specified")
-  })
-
+fn document(args: Args) -> Result(String, String) {
   case args {
-    [] ->
-      Error(
-        "Please specify a module to document. See gleamoire --help for more information",
-      )
-    [module, ..] -> resolve_input(module, print_mode)
+    Help -> Ok(help_text)
+    Document(module:, print_mode:) -> resolve_input(module, print_mode)
   }
 }
 
@@ -223,7 +266,7 @@ fn document_item(
       case print_mode {
         Unspecified ->
           Error(
-            "There is both a type and value with that name. Please specify --t or --v to print the one you want",
+            "There is both a type and value with that name. Please specify -t or -v to print the one you want",
           )
         Type -> Ok(type_docs)
         Value -> Ok(value_docs)
@@ -280,13 +323,7 @@ fn simplify_module_interface(interface: package_interface.Module) {
 }
 
 pub fn main() {
-  let glint =
-    glint.new()
-    |> glint.with_name("gleamoire")
-    |> glint.pretty_help(glint.default_pretty_help())
-    |> glint.add(at: [], do: document())
-
-  use result <- glint.run_and_handle(glint, argv.load().arguments)
+  let result = parse_args(argv.load().arguments) |> result.try(document)
 
   case result {
     Ok(docs) -> io.println(docs)
