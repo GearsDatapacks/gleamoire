@@ -7,6 +7,7 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/package_interface
+import gleam/result
 import gleam/string
 import gleamyshell
 import glint
@@ -30,7 +31,13 @@ fn value_flag() -> glint.Flag(Bool) {
   |> glint.flag_help("Print the value associated with the given name")
 }
 
-fn document() -> glint.Command(Nil) {
+type PrintMode {
+  Unspecified
+  Type
+  Value
+}
+
+fn document() -> glint.Command(Result(String, String)) {
   use <- glint.command_help("Documents a gleam module, in the command line!")
 
   use print_type <- glint.flag(type_flag())
@@ -38,31 +45,45 @@ fn document() -> glint.Command(Nil) {
 
   use _, args, flags <- glint.command()
 
-  let assert Ok(_print_type) = print_type(flags)
-  let assert Ok(_print_value) = print_value(flags)
+  let assert Ok(print_type) = print_type(flags)
+  let assert Ok(print_value) = print_value(flags)
+
+  use print_mode <- result.try(case print_type, print_value {
+    False, False -> Ok(Unspecified)
+    True, False -> Ok(Type)
+    False, True -> Ok(Value)
+    True, True -> Error("Only one of --t and --v may be specified")
+  })
 
   case args {
     [] ->
-      io.println(
+      Error(
         "Please specify a module to document. See gleamoire --help for more information",
       )
-    [module, ..] -> io.println(resolve_input(module))
+    [module, ..] -> resolve_input(module, print_mode)
   }
 }
 
-fn resolve_input(module_item: String) -> String {
-  let #(module_path, item) = case string.split(module_item, on: ".") {
-    [module_path, item] -> #(module_path, Some(item))
-    [module_path] -> #(module_path, None)
-    _ -> panic as "Invalid module item requested"
-  }
+fn resolve_input(
+  module_item: String,
+  print_mode: PrintMode,
+) -> Result(String, String) {
+  use #(module_path, item) <- result.try(case
+    string.split(module_item, on: ".")
+  {
+    [module_path, item] -> Ok(#(module_path, Some(item)))
+    [module_path] -> Ok(#(module_path, None))
+    _ -> Error("Invalid module item requested")
+  })
   let assert [main_module, ..sub] = string.split(module_path, on: "/")
 
-  case main_module {
+  use _ <- result.try(case main_module {
     "" ->
-      panic as "I did not understand what module you are reffering to (should respect main/module.item syntax)"
-    _ -> Nil
-  }
+      Error(
+        "I did not understand what module you are reffering to (should respect main/module.item syntax)",
+      )
+    _ -> Ok(Nil)
+  })
 
   let assert Ok(config_file) = simplifile.read("./gleam.toml")
   let assert Ok(config) = tom.parse(config_file)
@@ -85,14 +106,14 @@ fn resolve_input(module_item: String) -> String {
       }
     }
   }
-  |> get_docs([main_module, ..sub], item)
+  |> result.try(get_docs(_, [main_module, ..sub], item, print_mode))
 }
 
 fn get_package_interface(
   module_name: String,
   module_path: Option(String),
   cache_path: Option(String),
-) -> String {
+) -> Result(String, String) {
   let assert Ok(home_dir) = gleamyshell.home_directory()
   let cache_location = option.unwrap(cache_path, default_cache)
   let gleamoire_cache = home_dir <> "/" <> cache_location <> "/"
@@ -104,7 +125,7 @@ fn get_package_interface(
     Ok(True), _ -> {
       // If cache file exists
       let assert Ok(body) = simplifile.read(package_interface_path)
-      body
+      Ok(body)
     }
     _, Some(dep_path) -> {
       // Build if dep package
@@ -115,7 +136,7 @@ fn get_package_interface(
       let assert Ok(_) = simplifile.create_file(package_interface_path)
       let assert Ok(_) = simplifile.write(package_interface_path, dep_interface)
 
-      dep_interface
+      Ok(dep_interface)
     }
     Ok(False), _ -> {
       // If all fails, query hexdocs
@@ -128,9 +149,9 @@ fn get_package_interface(
       let assert Ok(_) = simplifile.create_file(package_interface_path)
       let assert Ok(_) = simplifile.write(package_interface_path, resp.body)
 
-      resp.body
+      Ok(resp.body)
     }
-    _, _ -> panic as { "Unable to find " <> module_name <> "'s interface." }
+    _, _ -> Error({ "Unable to find " <> module_name <> "'s interface." })
   }
 }
 
@@ -171,7 +192,8 @@ fn get_docs(
   json: String,
   module_path: List(String),
   item: Option(String),
-) -> String {
+  print_mode: PrintMode,
+) -> Result(String, String) {
   // Get interface string
   let assert Ok(interface) = json.decode(json, using: package_interface.decoder)
 
@@ -180,24 +202,32 @@ fn get_docs(
 
   case item, module_interface.documentation {
     None, [] -> todo as "print out README.md"
-    None, module_documentation -> string.join(module_documentation, "\n")
-    Some(item), _ -> document_item(module_interface, item)
+    None, module_documentation -> Ok(string.join(module_documentation, "\n"))
+    Some(item), _ -> document_item(module_interface, item, print_mode)
   }
 }
 
 fn document_item(
   module_interface: package_interface.Module,
   name: String,
-) -> String {
+  print_mode: PrintMode,
+) -> Result(String, String) {
   let simple = simplify_module_interface(module_interface)
   let type_ = dict.get(simple.types, name)
   let value = dict.get(simple.values, name)
   case type_, value {
-    Error(_), Error(_) ->
-      panic as { "No item has been found with the name " <> name }
-    Ok(type_docs), Error(_) -> type_docs
-    Error(_), Ok(value_docs) -> value_docs
-    Ok(_), Ok(_) -> todo as "Distinguish types and values with the same name"
+    Error(_), Error(_) -> Error("No item has been found with the name " <> name)
+    Ok(type_docs), Error(_) -> Ok(type_docs)
+    Error(_), Ok(value_docs) -> Ok(value_docs)
+    Ok(type_docs), Ok(value_docs) ->
+      case print_mode {
+        Unspecified ->
+          Error(
+            "There is both a type and value with that name. Please specify --t or --v to print the one you want",
+          )
+        Type -> Ok(type_docs)
+        Value -> Ok(value_docs)
+      }
   }
 }
 
@@ -250,9 +280,16 @@ fn simplify_module_interface(interface: package_interface.Module) {
 }
 
 pub fn main() {
-  glint.new()
-  |> glint.with_name("gleamoire")
-  |> glint.pretty_help(glint.default_pretty_help())
-  |> glint.add(at: [], do: document())
-  |> glint.run(argv.load().arguments)
+  let glint =
+    glint.new()
+    |> glint.with_name("gleamoire")
+    |> glint.pretty_help(glint.default_pretty_help())
+    |> glint.add(at: [], do: document())
+
+  use result <- glint.run_and_handle(glint, argv.load().arguments)
+
+  case result {
+    Ok(docs) -> io.println(docs)
+    Error(error) -> io.println(error)
+  }
 }
