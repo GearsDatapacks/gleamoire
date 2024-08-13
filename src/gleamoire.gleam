@@ -302,9 +302,9 @@ fn simplify_module_interface(interface: package_interface.Module) {
   let values =
     dict.merge(
       values,
-      interface.constants
-        |> dict.map_values(fn(_, constant) {
-          constant.documentation |> option.unwrap("")
+      interface.functions
+        |> dict.map_values(fn(_, function) {
+          function.documentation |> option.unwrap("")
         }),
     )
   let constructors =
