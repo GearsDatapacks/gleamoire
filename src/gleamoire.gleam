@@ -9,6 +9,8 @@ import gleam/option.{type Option, None, Some}
 import gleam/package_interface
 import gleam/result
 import gleam/string
+import gleamoire/args
+import gleamoire/error
 import gleamyshell
 import glitzer/spinner
 import simplifile
@@ -18,125 +20,69 @@ const default_cache = ".cache/gleamoire"
 
 const hexdocs_url = "https://hexdocs.pm/"
 
-type Args {
-  Help
-  Document(module: String, print_mode: PrintMode)
-}
-
-fn parse_args(args: List(String)) -> Result(Args, String) {
-  use parsed <- result.try(do_parse_args(
-    args,
-    Parsed(value_flag: False, type_flag: False, help_flag: False, module: None),
-  ))
-  use print_mode <- result.try(case parsed.type_flag, parsed.value_flag {
-    False, False -> Ok(Unspecified)
-    True, False -> Ok(Type)
-    False, True -> Ok(Value)
-    True, True -> Error("Only one of -t and -v may be specified")
-  })
-  case parsed {
-    Parsed(help_flag: True, ..) -> Ok(Help)
-    Parsed(module: Some(module), ..) -> Ok(Document(module, print_mode))
-    Parsed(module: None, help_flag: False, ..) ->
-      Error(
-        "Please specify a module to document. See gleamoire --help for more information",
-      )
-  }
-}
-
-type Parsed {
-  Parsed(
-    value_flag: Bool,
-    type_flag: Bool,
-    help_flag: Bool,
-    module: Option(String),
-  )
-}
-
-fn do_parse_args(args: List(String), parsed: Parsed) -> Result(Parsed, String) {
+fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
-    [] -> Ok(parsed)
-    [arg, ..args] -> {
-      use parsed <- result.try(case arg {
-        "-t" ->
-          case parsed.type_flag {
-            True -> Error("Flags can only be specified once")
-            False -> Ok(Parsed(..parsed, type_flag: True))
-          }
-        "-v" ->
-          case parsed.value_flag {
-            True -> Error("Flags can only be specified once")
-            False -> Ok(Parsed(..parsed, value_flag: True))
-          }
-        "--help" | "-h" ->
-          case parsed.help_flag {
-            True -> Error("Flags can only be specified once")
-            False -> Ok(Parsed(..parsed, help_flag: True))
-          }
-        _ ->
-          case parsed.module {
-            Some(_) -> Error("Please only specify one module to document")
-            None -> Ok(Parsed(..parsed, module: Some(arg)))
-          }
-      })
-      do_parse_args(args, parsed)
-    }
-  }
-}
-
-type PrintMode {
-  Unspecified
-  Type
-  Value
-}
-
-const help_text = "Documents a gleam module, type or value, in the command line!
-
-Usage:
-gleamoire <module> [flags]
-
-Flags:
---help, -h   Print this help text
--t           Print the type associated with the given name
--v           Print the value associated with the given name"
-
-fn document(args: Args) -> Result(String, String) {
-  case args {
-    Help -> Ok(help_text)
-    Document(module:, print_mode:) -> resolve_input(module, print_mode)
+    args.Help -> Ok(args.help_text)
+    args.Document(module:, print_mode:) -> resolve_input(module, print_mode)
   }
 }
 
 fn resolve_input(
   module_item: String,
-  print_mode: PrintMode,
-) -> Result(String, String) {
+  print_mode: args.PrintMode,
+) -> Result(String, error.Error) {
   use #(module_path, item) <- result.try(case
     string.split(module_item, on: ".")
   {
     [module_path, item] -> Ok(#(module_path, Some(item)))
     [module_path] -> Ok(#(module_path, None))
-    _ -> Error("Invalid module item requested")
+    _ -> Error(error.InputError("Invalid module item requested"))
   })
+  // We can safely assert here because string.split will always
+  // return at least one string in the list
   let assert [main_module, ..sub] = string.split(module_path, on: "/")
 
   use _ <- result.try(case main_module {
     "" ->
-      Error(
-        "I did not understand what module you are reffering to (should respect main/module.item syntax)",
-      )
+      Error(error.InputError(
+        "I did not understand what module you are referring to (should respect main/module.item syntax)",
+      ))
     _ -> Ok(Nil)
   })
 
-  let assert Ok(config_file) = simplifile.read("./gleam.toml")
-  let assert Ok(config) = tom.parse(config_file)
-  let assert Ok(current_module) = tom.get_string(config, ["name"])
+  use config_file <- result.try(
+    simplifile.read("./gleam.toml")
+    |> result.map_error(fn(error) {
+      error.UnexpectedError(
+        "Could not open gleam.toml: "
+        <> simplifile.describe_error(error)
+        <> ". Please ensure that gleamoire is run inside a gleam project",
+      )
+    }),
+  )
+  use config <- result.try(
+    tom.parse(config_file)
+    |> result.replace_error(error.UnexpectedError(
+      "gleam.toml is malformed. Please ensure that you have a valid gleam.toml in your project",
+    )),
+  )
+  use current_module <- result.try(
+    tom.get_string(config, ["name"])
+    |> result.replace_error(error.UnexpectedError(
+      "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
+    )),
+  )
 
   // Retrieve package interface
   case main_module == current_module {
     True -> get_package_interface(current_module, Some("."), None)
     False -> {
-      let assert Ok(dep) = tom.get_table(config, ["dependencies"])
+      use dep <- result.try(
+        tom.get_table(config, ["dependencies"])
+        |> result.replace_error(error.UnexpectedError(
+          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project",
+        )),
+      )
       let is_dep = dict.has_key(dep, main_module)
       case is_dep {
         True ->
@@ -156,8 +102,13 @@ fn get_package_interface(
   module_name: String,
   module_path: Option(String),
   cache_path: Option(String),
-) -> Result(String, String) {
-  let assert Ok(home_dir) = gleamyshell.home_directory()
+) -> Result(String, error.Error) {
+  use home_dir <- result.try(
+    gleamyshell.home_directory()
+    |> result.replace_error(error.UnexpectedError(
+      "Could not get the home directory",
+    )),
+  )
   let cache_location = option.unwrap(cache_path, default_cache)
   let gleamoire_cache = home_dir <> "/" <> cache_location <> "/"
 
@@ -167,38 +118,128 @@ fn get_package_interface(
   case simplifile.is_file(package_interface_path), module_path {
     Ok(True), _ -> {
       // If cache file exists
-      let assert Ok(body) = simplifile.read(package_interface_path)
-      Ok(body)
+      simplifile.read(package_interface_path)
+      |> result.map_error(fn(error) {
+        error.UnexpectedError(
+          "Failed to read "
+          <> package_interface_path
+          <> ": "
+          <> simplifile.describe_error(error),
+        )
+      })
     }
     _, Some(dep_path) -> {
       // Build if dep package
-      let dep_interface = build_package_interface(dep_path)
+      use dep_interface <- result.try(build_package_interface(dep_path))
 
-      let assert Ok(_) =
-        simplifile.create_directory_all(gleamoire_cache <> module_name)
-      let assert Ok(_) = simplifile.create_file(package_interface_path)
-      let assert Ok(_) = simplifile.write(package_interface_path, dep_interface)
+      let package_interface_directory = gleamoire_cache <> module_name
+      use _ <- result.try(
+        simplifile.create_directory_all(package_interface_directory)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to create directory "
+            <> package_interface_directory
+            <> ": "
+            <> simplifile.describe_error(error),
+          )
+        }),
+      )
+      use _ <- result.try(
+        simplifile.create_file(package_interface_path)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to create file "
+            <> package_interface_path
+            <> ": "
+            <> simplifile.describe_error(error),
+          )
+        }),
+      )
+      use _ <- result.map(
+        simplifile.write(package_interface_path, dep_interface)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to write to file "
+            <> package_interface_path
+            <> ": "
+            <> simplifile.describe_error(error),
+          )
+        }),
+      )
 
-      Ok(dep_interface)
+      dep_interface
     }
     Ok(False), _ -> {
       // If all fails, query hexdocs
-      let assert Ok(hex_req) =
+      use hex_req <- result.try(
         request.to(hexdocs_url <> module_name <> "/package-interface.json")
+        |> result.replace_error(error.UnexpectedError(
+          "Failed to construct request url",
+        )),
+      )
 
-      let assert Ok(resp) = httpc.send(hex_req)
-      let assert Ok(_) =
-        simplifile.create_directory_all(gleamoire_cache <> module_name)
-      let assert Ok(_) = simplifile.create_file(package_interface_path)
-      let assert Ok(_) = simplifile.write(package_interface_path, resp.body)
+      use resp <- result.try(
+        httpc.send(hex_req)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to query " <> hex_req.path <> ": " <> string.inspect(error),
+          )
+        }),
+      )
 
-      Ok(resp.body)
+      // Make sure we don't cache data on 404 or other failed codes
+      use _ <- result.try(case resp.status {
+        200 -> Ok(Nil)
+        _ ->
+          Error(error.InterfaceError(
+            "Package " <> module_name <> " does not exist.",
+          ))
+      })
+
+      let cache_directory = gleamoire_cache <> module_name
+      use _ <- result.try(
+        simplifile.create_directory_all(cache_directory)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to create directory "
+            <> cache_directory
+            <> ": "
+            <> simplifile.describe_error(error),
+          )
+        }),
+      )
+      use _ <- result.try(
+        simplifile.create_file(package_interface_path)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to create file "
+            <> package_interface_path
+            <> ": "
+            <> simplifile.describe_error(error),
+          )
+        }),
+      )
+      use _ <- result.map(
+        simplifile.write(package_interface_path, resp.body)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to write to file "
+            <> package_interface_path
+            <> ": "
+            <> simplifile.describe_error(error),
+          )
+        }),
+      )
+      resp.body
     }
-    _, _ -> Error({ "Unable to find " <> module_name <> "'s interface." })
+    _, _ ->
+      Error(error.InterfaceError(
+        "Unable to find " <> module_name <> "'s interface.",
+      ))
   }
 }
 
-fn build_package_interface(path: String) -> String {
+fn build_package_interface(path: String) -> Result(String, error.Error) {
   let s =
     spinner.spinning_spinner()
     |> spinner.with_right_text(" Building docs")
@@ -227,21 +268,38 @@ fn build_package_interface(path: String) -> String {
 
   spinner.finish(s)
 
-  let assert Ok(interface) = simplifile.read(interface_path)
-  interface
+  simplifile.read(interface_path)
+  |> result.map_error(fn(error) {
+    error.UnexpectedError(
+      "Failed to read "
+      <> interface_path
+      <> ": "
+      <> simplifile.describe_error(error),
+    )
+  })
 }
 
 fn get_docs(
   json: String,
   module_path: List(String),
   item: Option(String),
-  print_mode: PrintMode,
-) -> Result(String, String) {
+  print_mode: args.PrintMode,
+) -> Result(String, error.Error) {
   // Get interface string
-  let assert Ok(interface) = json.decode(json, using: package_interface.decoder)
+  use interface <- result.try(
+    json.decode(json, using: package_interface.decoder)
+    |> result.replace_error(error.UnexpectedError(
+      "Failed to decode package-interface.json. Something went wrong with the build process",
+    )),
+  )
 
-  let assert Ok(module_interface) =
-    dict.get(interface.modules, string.join(module_path, "/"))
+  let joined_path = string.join(module_path, "/")
+  use module_interface <- result.try(
+    dict.get(interface.modules, joined_path)
+    |> result.replace_error(error.InterfaceError(
+      "Package " <> interface.name <> " does not contain module " <> joined_path,
+    )),
+  )
 
   case item, module_interface.documentation {
     None, [] -> todo as "print out README.md"
@@ -253,23 +311,26 @@ fn get_docs(
 fn document_item(
   module_interface: package_interface.Module,
   name: String,
-  print_mode: PrintMode,
-) -> Result(String, String) {
+  print_mode: args.PrintMode,
+) -> Result(String, error.Error) {
   let simple = simplify_module_interface(module_interface)
   let type_ = dict.get(simple.types, name)
   let value = dict.get(simple.values, name)
   case type_, value {
-    Error(_), Error(_) -> Error("No item has been found with the name " <> name)
+    Error(_), Error(_) ->
+      Error(error.InterfaceError(
+        "No item has been found with the name " <> name,
+      ))
     Ok(type_docs), Error(_) -> Ok(type_docs)
     Error(_), Ok(value_docs) -> Ok(value_docs)
     Ok(type_docs), Ok(value_docs) ->
       case print_mode {
-        Unspecified ->
-          Error(
+        args.Unspecified ->
+          Error(error.InterfaceError(
             "There is both a type and value with that name. Please specify -t or -v to print the one you want",
-          )
-        Type -> Ok(type_docs)
-        Value -> Ok(value_docs)
+          ))
+        args.Type -> Ok(type_docs)
+        args.Value -> Ok(value_docs)
       }
   }
 }
@@ -323,10 +384,10 @@ fn simplify_module_interface(interface: package_interface.Module) {
 }
 
 pub fn main() {
-  let result = parse_args(argv.load().arguments) |> result.try(document)
+  let result = args.parse(argv.load().arguments) |> result.try(document)
 
   case result {
     Ok(docs) -> io.println(docs)
-    Error(error) -> io.println(error)
+    Error(error) -> io.println(error.to_string(error))
   }
 }
