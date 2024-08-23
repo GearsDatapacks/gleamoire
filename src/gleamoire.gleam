@@ -23,13 +23,15 @@ const hexdocs_url = "https://hexdocs.pm/"
 fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
-    args.Document(module:, print_mode:) -> resolve_input(module, print_mode)
+    args.Document(module:, print_mode:, cache_path:) ->
+      resolve_input(module, print_mode, cache_path)
   }
 }
 
 fn resolve_input(
   module_item: String,
   print_mode: args.PrintMode,
+  cache_path: Option(String),
 ) -> Result(String, error.Error) {
   use #(module_path, item) <- result.try(case
     string.split(module_item, on: ".")
@@ -75,7 +77,7 @@ fn resolve_input(
 
   // Retrieve package interface
   case main_module == current_module {
-    True -> get_package_interface(current_module, Some("."), None)
+    True -> get_package_interface(current_module, Some("."), cache_path)
     False -> {
       use dep <- result.try(
         tom.get_table(config, ["dependencies"])
@@ -89,9 +91,9 @@ fn resolve_input(
           get_package_interface(
             main_module,
             Some("./build/packages/" <> main_module),
-            None,
+            cache_path,
           )
-        False -> get_package_interface(main_module, None, None)
+        False -> get_package_interface(main_module, None, cache_path)
       }
     }
   }
