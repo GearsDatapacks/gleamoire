@@ -302,10 +302,43 @@ fn get_docs(
   )
 
   case item, module_interface.documentation {
-    None, [] -> todo as "print out README.md"
-    None, module_documentation -> Ok(string.join(module_documentation, "\n"))
+    None, _module_documentation ->
+      document_module(joined_path, module_interface)
     Some(item), _ -> document_item(module_interface, item, print_mode)
   }
+}
+
+fn document_module(
+  module_name: String,
+  module_interface: package_interface.Module,
+) -> Result(String, error.Error) {
+  let simple = simplify_module_interface(module_interface)
+  let available_modules =
+    "## Available items in "
+    <> module_name
+    <> "\n\n"
+    <> "### Types\n"
+    <> string.join(
+      list.map(dict.keys(simple.types), string.append("  - ", _)),
+      "\n",
+    )
+    <> "\n\n"
+    <> "### Values\n"
+    <> string.join(
+      list.map(dict.keys(simple.values), string.append("  - ", _)),
+      "\n",
+    )
+  let module_documentation = case module_interface.documentation {
+    [] -> ""
+    // TODO: https://trello.com/c/qXFKt5Q7  Might open README.md if toplevel documentation
+    doc ->
+      "\n\n## Documentation for `"
+      <> module_name
+      <> "`\n"
+      <> string.join(doc, "\n")
+  }
+
+  Ok(available_modules <> module_documentation)
 }
 
 fn document_item(
