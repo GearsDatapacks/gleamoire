@@ -376,16 +376,18 @@ fn document_item(
 }
 
 fn render_item(item: SimpleItem, module_name: String) -> String {
-  let doc_skeleton =
-    "Documentation for item `"
-    <> item.name
-    <> "` in `"
-    <> module_name
-    <> "`:\n\n"
-    <> item.representation
-  case item.documentation {
-    None -> doc_skeleton
-    Some(docs) -> doc_skeleton <> "\n\n" <> docs <> "\n"
+  "Documentation for item `"
+  <> item.name
+  <> "` in `"
+  <> module_name
+  <> "`:\n\n"
+  <> item.representation
+  <> case item.documentation {
+    None | Some("") -> ""
+    Some(docs) -> "\n\n" <> docs <> "\n"
+  } <> case item.deprecation {
+    None | Some("") -> ""
+    Some(deprecation) -> "\n\n/!\\ This item has been deprecated :\n" <> deprecation
   }
 }
 
