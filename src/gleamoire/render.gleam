@@ -240,11 +240,18 @@ fn render_function(
   parameters: List(pi.Parameter),
   return: Option(pi.Type),
 ) -> String {
+  let rendered_params = case parameters {
+    [] -> "()"
+    [param] -> "(" <> render_parameter(param) <> ")"
+    params ->
+      "(\n  "
+      <> params |> list.map(render_parameter) |> string.join(", \n  ")
+      <> "\n)"
+  }
   "pub fn "
   <> name
-  <> "("
-  <> parameters |> list.map(render_parameter) |> string.join(", ")
-  <> ")\n  -> "
+  <> rendered_params
+  <> " -> "
   <> return |> option.map(render_type) |> option.unwrap("Nil")
 }
 
