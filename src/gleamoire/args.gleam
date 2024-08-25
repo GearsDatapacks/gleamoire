@@ -4,7 +4,12 @@ import gleamoire/error
 
 pub type Args {
   Help
-  Document(module: String, print_mode: PrintMode, cache_path: Option(String))
+  Document(
+    module: String,
+    print_mode: PrintMode,
+    cache_path: Option(String),
+    refresh_cache: Bool,
+  )
 }
 
 pub type PrintMode {
@@ -19,10 +24,11 @@ Usage:
 gleamoire <module> [flags]
 
 Flags:
---help, -h   Print this help text
---type, -t   Print the type associated with the given name
---value, -v  Print the value associated with the given name
---cache, -C  Use a different cache location for package-interface.json"
+--help, -h     Print this help text
+--type, -t     Print the type associated with the given name
+--value, -v    Print the value associated with the given name
+--cache, -C    Use a different cache location for package-interface.json
+--refresh, -r  Refresh the cache for the documented module, in case it is outdataded"
 
 pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   use parsed <- result.try(do_parse_args(
@@ -31,6 +37,7 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
       value_flag: False,
       type_flag: False,
       help_flag: False,
+      refresh_cache: False,
       module: None,
       cache_path: None,
     ),
@@ -44,8 +51,8 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   })
   case parsed {
     Parsed(help_flag: True, ..) -> Ok(Help)
-    Parsed(module: Some(module), cache_path:, ..) ->
-      Ok(Document(module, print_mode, cache_path))
+    Parsed(module: Some(module), cache_path:, refresh_cache:, ..) ->
+      Ok(Document(module:, print_mode:, cache_path:, refresh_cache:))
     Parsed(module: None, help_flag: False, ..) ->
       Error(error.InputError(
         "Please specify a module to document. See gleamoire --help for more information",
@@ -58,6 +65,7 @@ type Parsed {
     value_flag: Bool,
     type_flag: Bool,
     help_flag: Bool,
+    refresh_cache: Bool,
     cache_path: Option(String),
     module: Option(String),
   )
@@ -80,7 +88,7 @@ fn do_parse_args(
           ))
       }
     [arg, ..args] -> {
-      use parsed <- result.try(case arg {
+      case arg {
         "--type" | "-t" ->
           case parsed.type_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
@@ -96,6 +104,11 @@ fn do_parse_args(
             True -> Error(error.InputError("Flags can only be specified once"))
             False -> Ok(Parsed(..parsed, help_flag: True))
           }
+        "--refresh" | "-r" ->
+          case parsed.help_flag {
+            True -> Error(error.InputError("Flags can only be specified once"))
+            False -> Ok(Parsed(..parsed, refresh_cache: True))
+          }
         _ ->
           case parsed.module {
             Some(_) ->
@@ -104,8 +117,8 @@ fn do_parse_args(
               ))
             None -> Ok(Parsed(..parsed, module: Some(arg)))
           }
-      })
-      do_parse_args(args, parsed)
+      }
+      |> result.try(do_parse_args(args, _))
     }
   }
 }

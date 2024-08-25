@@ -23,8 +23,8 @@ const hexdocs_url = "https://hexdocs.pm/"
 fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
-    args.Document(module:, print_mode:, cache_path:) ->
-      resolve_input(module, print_mode, cache_path)
+    args.Document(module:, print_mode:, cache_path:, refresh_cache:) ->
+      resolve_input(module, print_mode, cache_path, refresh_cache)
   }
 }
 
@@ -32,6 +32,7 @@ fn resolve_input(
   module_item: String,
   print_mode: args.PrintMode,
   cache_path: Option(String),
+  refresh_cache: Bool,
 ) -> Result(String, error.Error) {
   use #(module_path, item) <- result.try(case
     string.split(module_item, on: ".")
@@ -77,7 +78,13 @@ fn resolve_input(
 
   // Retrieve package interface
   case main_module == current_module {
-    True -> get_package_interface(current_module, Some("."), cache_path)
+    True ->
+      get_package_interface(
+        current_module,
+        Some("."),
+        cache_path,
+        refresh_cache,
+      )
     False -> {
       use dep <- result.try(
         tom.get_table(config, ["dependencies"])
@@ -92,8 +99,10 @@ fn resolve_input(
             main_module,
             Some("./build/packages/" <> main_module),
             cache_path,
+            refresh_cache,
           )
-        False -> get_package_interface(main_module, None, cache_path)
+        False ->
+          get_package_interface(main_module, None, cache_path, refresh_cache)
       }
     }
   }
@@ -104,6 +113,7 @@ fn get_package_interface(
   module_name: String,
   module_path: Option(String),
   cache_path: Option(String),
+  refresh_cache: Bool,
 ) -> Result(String, error.Error) {
   use home_dir <- result.try(
     gleamyshell.home_directory()
@@ -117,8 +127,21 @@ fn get_package_interface(
   let package_interface_path =
     cache_location <> module_name <> "/package-interface.json"
 
-  case simplifile.is_file(package_interface_path), module_path {
-    Ok(True), _ -> {
+  let cache_exists = simplifile.is_file(package_interface_path)
+  use _ <- result.try(case refresh_cache, cache_exists {
+    True, Ok(True) -> {
+      simplifile.delete(package_interface_path)
+      |> result.map_error(fn(error) {
+        error.UnexpectedError(
+          "Failed to delete cache file: " <> simplifile.describe_error(error),
+        )
+      })
+    }
+    _, _ -> Ok(Nil)
+  })
+
+  case cache_exists, module_path {
+    Ok(True), _ if !refresh_cache -> {
       // If cache file exists
       simplifile.read(package_interface_path)
       |> result.map_error(fn(error) {
@@ -171,7 +194,7 @@ fn get_package_interface(
 
       dep_interface
     }
-    Ok(False), _ -> {
+    Ok(_), _ -> {
       // If all fails, query hexdocs
       use hex_req <- result.try(
         request.to(hexdocs_url <> module_name <> "/package-interface.json")
