@@ -305,7 +305,7 @@ fn get_docs(
 
   case item, module_interface.documentation {
     None, _module_documentation ->
-      document_module(joined_path, module_interface)
+      Ok(document_module(joined_path, module_interface))
     Some(item), _ ->
       document_item(item, joined_path, module_interface, print_mode)
   }

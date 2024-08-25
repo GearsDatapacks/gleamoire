@@ -10,7 +10,7 @@ import gleamoire/error
 pub fn document_module(
   module_name: String,
   module_interface: pi.Module,
-) -> Result(String, error.Error) {
+) -> String {
   let simple = simplify_module_interface(module_interface)
   let available_modules =
     "Help on module `"
@@ -38,7 +38,7 @@ pub fn document_module(
       <> string.join(doc, "\n")
   }
 
-  Ok(available_modules <> module_documentation)
+  available_modules <> module_documentation
 }
 
 pub fn document_item(
@@ -116,7 +116,7 @@ type SimpleModule {
   )
 }
 
-fn simplify_module_interface(interface: pi.Module) {
+fn simplify_module_interface(interface: pi.Module) -> SimpleModule {
   let types =
     interface.types
     |> dict.map_values(fn(_, type_) { Type(type_) })
