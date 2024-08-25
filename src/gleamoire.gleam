@@ -4,13 +4,13 @@ import gleam/http/request
 import gleam/httpc
 import gleam/io
 import gleam/json
-import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/package_interface
+import gleam/package_interface as pi
 import gleam/result
 import gleam/string
 import gleamoire/args
 import gleamoire/error
+import gleamoire/render.{document_item, document_module}
 import gleamyshell
 import glitzer/spinner
 import simplifile
@@ -289,7 +289,7 @@ fn get_docs(
 ) -> Result(String, error.Error) {
   // Get interface string
   use interface <- result.try(
-    json.decode(json, using: package_interface.decoder)
+    json.decode(json, using: pi.decoder)
     |> result.replace_error(error.UnexpectedError(
       "Failed to decode package-interface.json. Something went wrong with the build process",
     )),
@@ -306,116 +306,9 @@ fn get_docs(
   case item, module_interface.documentation {
     None, _module_documentation ->
       document_module(joined_path, module_interface)
-    Some(item), _ -> document_item(module_interface, item, print_mode)
+    Some(item), _ ->
+      document_item(item, joined_path, module_interface, print_mode)
   }
-}
-
-fn document_module(
-  module_name: String,
-  module_interface: package_interface.Module,
-) -> Result(String, error.Error) {
-  let simple = simplify_module_interface(module_interface)
-  let available_modules =
-    "## Available items in "
-    <> module_name
-    <> "\n\n"
-    <> "### Types\n"
-    <> string.join(
-      list.map(dict.keys(simple.types), string.append("  - ", _)),
-      "\n",
-    )
-    <> "\n\n"
-    <> "### Values\n"
-    <> string.join(
-      list.map(dict.keys(simple.values), string.append("  - ", _)),
-      "\n",
-    )
-  let module_documentation = case module_interface.documentation {
-    [] -> ""
-    // TODO: https://trello.com/c/qXFKt5Q7  Might open README.md if toplevel documentation
-    doc ->
-      "\n\n## Documentation for `"
-      <> module_name
-      <> "`\n"
-      <> string.join(doc, "\n")
-  }
-
-  Ok(available_modules <> module_documentation)
-}
-
-fn document_item(
-  module_interface: package_interface.Module,
-  name: String,
-  print_mode: args.PrintMode,
-) -> Result(String, error.Error) {
-  let simple = simplify_module_interface(module_interface)
-  let type_ = dict.get(simple.types, name)
-  let value = dict.get(simple.values, name)
-  case type_, value {
-    Error(_), Error(_) ->
-      Error(error.InterfaceError(
-        "No item has been found with the name " <> name,
-      ))
-    Ok(type_docs), Error(_) -> Ok(type_docs)
-    Error(_), Ok(value_docs) -> Ok(value_docs)
-    Ok(type_docs), Ok(value_docs) ->
-      case print_mode {
-        args.Unspecified ->
-          Error(error.InterfaceError(
-            "There is both a type and value with that name. Please specify -t or -v to print the one you want",
-          ))
-        args.Type -> Ok(type_docs)
-        args.Value -> Ok(value_docs)
-      }
-  }
-}
-
-type SimpleModule {
-  SimpleModule(
-    types: dict.Dict(String, String),
-    values: dict.Dict(String, String),
-  )
-}
-
-fn simplify_module_interface(interface: package_interface.Module) {
-  let types =
-    interface.types
-    |> dict.map_values(fn(_, type_) { type_.documentation |> option.unwrap("") })
-  let types =
-    dict.merge(
-      types,
-      interface.type_aliases
-        |> dict.map_values(fn(_, alias) {
-          alias.documentation |> option.unwrap("")
-        }),
-    )
-
-  let values =
-    interface.constants
-    |> dict.map_values(fn(_, constant) {
-      constant.documentation |> option.unwrap("")
-    })
-  let values =
-    dict.merge(
-      values,
-      interface.functions
-        |> dict.map_values(fn(_, function) {
-          function.documentation |> option.unwrap("")
-        }),
-    )
-  let constructors =
-    list.fold(dict.values(interface.types), dict.new(), fn(acc, type_) {
-      dict.merge(
-        acc,
-        type_.constructors
-          |> list.map(fn(cons) {
-            #(cons.name, cons.documentation |> option.unwrap(""))
-          })
-          |> dict.from_list(),
-      )
-    })
-  let values = dict.merge(values, constructors)
-  SimpleModule(types:, values:)
 }
 
 pub fn main() {
