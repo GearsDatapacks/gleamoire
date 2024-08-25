@@ -111,11 +111,11 @@ fn get_package_interface(
       "Could not get the home directory",
     )),
   )
-  let cache_location = option.unwrap(cache_path, default_cache)
-  let gleamoire_cache = home_dir <> "/" <> cache_location <> "/"
+  let cache_location =
+    option.unwrap(cache_path, home_dir <> "/" <> default_cache) <> "/"
 
   let package_interface_path =
-    gleamoire_cache <> module_name <> "/package-interface.json"
+    cache_location <> module_name <> "/package-interface.json"
 
   case simplifile.is_file(package_interface_path), module_path {
     Ok(True), _ -> {
@@ -134,7 +134,7 @@ fn get_package_interface(
       // Build if dep package
       use dep_interface <- result.try(build_package_interface(dep_path))
 
-      let package_interface_directory = gleamoire_cache <> module_name
+      let package_interface_directory = cache_location <> module_name
       use _ <- result.try(
         simplifile.create_directory_all(package_interface_directory)
         |> result.map_error(fn(error) {
@@ -198,7 +198,7 @@ fn get_package_interface(
           ))
       })
 
-      let cache_directory = gleamoire_cache <> module_name
+      let cache_directory = cache_location <> module_name
       use _ <- result.try(
         simplifile.create_directory_all(cache_directory)
         |> result.map_error(fn(error) {
