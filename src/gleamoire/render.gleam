@@ -10,44 +10,83 @@ import gleamoire/error
 pub fn document_module(
   module_name: String,
   module_interface: pi.Module,
+  package_interface: pi.Package,
 ) -> String {
-  let simple = simplify_module_interface(module_interface)
+  let simple =
+    simplify_module_interface(module_name, module_interface, package_interface)
   let available_modules =
     "Help on module `"
     <> module_name
     <> "`:\n\n"
-    <> "Available items\n"
-    <> "> Types\n"
-    <> string.join(
-      list.map(dict.keys(simple.types), string.append("  - ", _)),
+    <> list_or_empty(
+      "Available submodules\n",
+      simple.submodules |> list.map(string.append("  - ", _)),
       "\n",
+      "\n\n",
     )
-    <> "\n\n"
-    <> "> Values\n"
-    <> string.join(
-      list.map(dict.keys(simple.values), string.append("  - ", _)),
+    <> list_or_empty(
+      "Available items\n",
+      [
+        list_or_none(
+          "> Types\n",
+          list.map(dict.keys(simple.types), string.append("  - ", _)),
+          "\n",
+          "",
+        ),
+        list_or_none(
+          "> Values\n",
+          list.map(dict.keys(simple.values), string.append("  - ", _)),
+          "\n",
+          "",
+        ),
+      ]
+        |> list.filter_map(option.to_result(_, Nil)),
+      "\n\n",
+      "\n\n",
+    )
+
+  // TODO: https://trello.com/c/qXFKt5Q7  Might open README.md if toplevel documentation
+  let module_documentation =
+    list_or_empty(
+      "Documentation for module `" <> module_name <> "`\n",
+      module_interface.documentation,
       "\n",
+      "",
     )
-  let module_documentation = case module_interface.documentation {
-    [] -> ""
-    // TODO: https://trello.com/c/qXFKt5Q7  Might open README.md if toplevel documentation
-    doc ->
-      "\n\nDocumentation for module `"
-      <> module_name
-      <> "`\n"
-      <> string.join(doc, "\n")
-  }
 
   available_modules <> module_documentation
+}
+
+fn list_or_empty(
+  prefix: String,
+  list: List(String),
+  separator: String,
+  suffix: String,
+) -> String {
+  list_or_none(prefix, list, separator, suffix) |> option.unwrap("")
+}
+
+fn list_or_none(
+  prefix: String,
+  list: List(String),
+  separator: String,
+  suffix: String,
+) -> Option(String) {
+  case list {
+    [] -> None
+    _ -> Some(prefix <> list |> string.join(separator) <> suffix)
+  }
 }
 
 pub fn document_item(
   name: String,
   module_name: String,
   module_interface: pi.Module,
+  package_interface: pi.Package,
   print_mode: args.PrintMode,
 ) -> Result(String, error.Error) {
-  let simple = simplify_module_interface(module_interface)
+  let simple =
+    simplify_module_interface(module_name, module_interface, package_interface)
   let type_ = dict.get(simple.types, name)
   let value = dict.get(simple.values, name)
 
@@ -111,12 +150,17 @@ type SimpleItem {
 
 type SimpleModule {
   SimpleModule(
+    submodules: List(String),
     types: dict.Dict(String, SimpleItem),
     values: dict.Dict(String, SimpleItem),
   )
 }
 
-fn simplify_module_interface(interface: pi.Module) -> SimpleModule {
+fn simplify_module_interface(
+  module_name: String,
+  interface: pi.Module,
+  package_interface: pi.Package,
+) -> SimpleModule {
   let types =
     interface.types
     |> dict.map_values(fn(_, type_) { Type(type_) })
@@ -154,7 +198,12 @@ fn simplify_module_interface(interface: pi.Module) -> SimpleModule {
   let values =
     dict.merge(values, constructors) |> dict.map_values(simplify_value)
 
-  SimpleModule(types:, values:)
+  let submodules =
+    package_interface.modules
+    |> dict.keys()
+    |> list.filter(string.starts_with(_, module_name <> "/"))
+
+  SimpleModule(types:, values:, submodules:)
 }
 
 fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
@@ -223,11 +272,7 @@ fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
 fn render_constructor(c: pi.TypeConstructor) -> String {
   let pi.TypeConstructor(_, name, parameters) = c
   name
-  <> case parameters {
-    [] -> ""
-    params ->
-      "(" <> params |> list.map(render_parameter) |> string.join(", ") <> ")"
-  }
+  <> list_or_empty("(", parameters |> list.map(render_parameter), ", ", ")")
 }
 
 fn render_parameter(p: pi.Parameter) -> String {
@@ -266,12 +311,7 @@ fn render_type(type_: pi.Type) -> String {
       <> render_type(return)
     pi.Variable(id) -> get_variable_symbol(id)
     pi.Named(name, _package, _module, parameters) ->
-      name
-      <> case parameters {
-        [] -> ""
-        items ->
-          "(" <> items |> list.map(render_type) |> string.join(", ") <> ")"
-      }
+      name <> list_or_empty("(", parameters |> list.map(render_type), ", ", ")")
   }
 }
 
