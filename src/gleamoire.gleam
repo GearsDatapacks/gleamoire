@@ -397,7 +397,7 @@ type TypeInterface {
 type ValueInterface {
   Constant(pi.Constant)
   Function(pi.Function)
-  Constructor(pi.TypeConstructor)
+  Constructor(cons: pi.TypeConstructor, parent: SimpleItem)
 }
 
 type SimpleItem {
@@ -438,11 +438,16 @@ fn simplify_module_interface(interface: pi.Module) {
         |> dict.map_values(fn(_, function) { Function(function) }),
     )
   let constructors =
-    list.fold(dict.values(interface.types), dict.new(), fn(acc, type_) {
+    dict.fold(interface.types, dict.new(), fn(acc, type_name, type_) {
       dict.merge(
         acc,
         type_.constructors
-          |> list.map(fn(cons) { #(cons.name, Constructor(cons)) })
+          |> list.map(fn(cons) {
+            #(
+              cons.name,
+              Constructor(cons, simplify_type(type_name, Type(type_))),
+            )
+          })
           |> dict.from_list(),
       )
     })
@@ -457,7 +462,7 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
     Type(t) -> t.documentation
     Alias(a) -> a.documentation
   }
-  let render_parameters = fn(p) {
+  let render_type_parameters = fn(p) {
     case p {
       0 -> ""
       n ->
@@ -473,14 +478,14 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
     Type(t) ->
       "pub type "
       <> name
-      <> t.parameters |> render_parameters
+      <> t.parameters |> render_type_parameters
       <> " {\n  "
       <> t.constructors |> list.map(render_constructor) |> string.join("\n  ")
       <> "\n}"
     Alias(a) ->
       "type "
       <> name
-      <> a.parameters |> render_parameters
+      <> a.parameters |> render_type_parameters
       <> " = "
       <> render_type(a.alias)
   }
@@ -495,19 +500,22 @@ fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
   let documentation = case value {
     Function(f) -> f.documentation
     Constant(c) -> c.documentation
-    Constructor(c) -> c.documentation
+    Constructor(c, _) -> c.documentation
   }
   let representation = case value {
     Function(f) -> render_function(name, f.parameters, Some(f.return))
     Constant(c) -> "pub const " <> name <> ": " <> render_type(c.type_)
-    Constructor(c) -> render_constructor(c)
+    Constructor(c, parent_type) ->
+      render_constructor(c)
+      <> "\n\nThis constructor occurs in the following type:\n"
+      <> parent_type.representation
   }
   let deprecation = case value {
     Function(f) ->
       option.map(f.deprecation, fn(d: pi.Deprecation) { d.message })
     Constant(c) ->
       option.map(c.deprecation, fn(d: pi.Deprecation) { d.message })
-    Constructor(_) -> None
+    Constructor(..) -> None
   }
   SimpleItem(name:, documentation:, deprecation:, representation:)
 }
