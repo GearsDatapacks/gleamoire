@@ -4,6 +4,7 @@ import gleam/http/request
 import gleam/httpc
 import gleam/io
 import gleam/json
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/package_interface as pi
 import gleam/result
@@ -80,19 +81,31 @@ fn resolve_input(
   )
 
   // Retrieve package interface
-  case main_module == current_module {
-    True ->
+  let sub_is_stdlib = is_stdlib(sub)
+  case main_module {
+    "gleam" if sub_is_stdlib == True ->
+      get_package_interface("gleam_stdlib", None, cache_path, refresh_cache)
+    "gleam" ->
       get_package_interface(
-        current_module,
-        Some("."),
+        "gleam_" <> result.unwrap(list.first(sub), ""),
+        None,
         cache_path,
         refresh_cache,
       )
-    False -> {
+    "gleam_community" ->
+      get_package_interface(
+        "gleam_community_" <> result.unwrap(list.first(sub), ""),
+        None,
+        cache_path,
+        refresh_cache,
+      )
+    module if main_module == current_module ->
+      get_package_interface(module, Some("."), cache_path, refresh_cache)
+    _ -> {
       use dep <- result.try(
         tom.get_table(config, ["dependencies"])
         |> result.replace_error(error.UnexpectedError(
-          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project",
+          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
         )),
       )
       let is_dep = dict.has_key(dep, main_module)
@@ -110,6 +123,18 @@ fn resolve_input(
     }
   }
   |> result.try(get_docs(_, [main_module, ..sub], item, print_mode))
+}
+
+fn is_stdlib(p: List(String)) -> Bool {
+  let stdlib = [
+    "bit_array", "bool", "bytes_builder", "dict", "dynamic", "float", "function",
+    "int", "io", "iterator", "list", "option", "order", "pair", "queue", "regex",
+    "result", "set", "string", "string_builder", "uri",
+  ]
+  case p {
+    [] -> False
+    [e, ..] -> list.contains(stdlib, e)
+  }
 }
 
 fn get_package_interface(
@@ -317,7 +342,7 @@ fn get_docs(
   use interface <- result.try(
     json.decode(json, using: pi.decoder)
     |> result.replace_error(error.UnexpectedError(
-      "Failed to decode package-interface.json. Something went wrong with the build process",
+      "Failed to decode package-interface.json. Something went wrong during the build process.",
     )),
   )
 
