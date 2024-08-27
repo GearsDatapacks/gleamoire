@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should report no module error
+---
+InputError: Please specify a module to document. See gleamoire --help for more information

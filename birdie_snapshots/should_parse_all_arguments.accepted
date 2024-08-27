@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should parse all arguments
+---
+Document("lustre.Error", Type, Some("~/.cache"), True)

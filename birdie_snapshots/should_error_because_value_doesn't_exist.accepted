@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should error because value doesn't exist
+---
+InterfaceError: No item has been found with the name NonExistent

@@ -111,7 +111,9 @@ pub fn document_item(
 }
 
 fn render_item(item: SimpleItem, module_name: String) -> String {
-  "Documentation for item `"
+  "Documentation for "
+  <> item.kind
+  <> " `"
   <> item.name
   <> "` in `"
   <> module_name
@@ -142,6 +144,7 @@ type ValueInterface {
 type SimpleItem {
   SimpleItem(
     name: String,
+    kind: String,
     representation: String,
     documentation: Option(String),
     deprecation: Option(String),
@@ -216,8 +219,7 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
       0 -> ""
       n ->
         "("
-        <> n
-        |> list.range(0, _)
+        <> list.range(0, n - 1)
         |> list.map(get_variable_symbol)
         |> string.join(", ")
         <> ")"
@@ -242,7 +244,7 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
     Type(t) -> option.map(t.deprecation, fn(d: pi.Deprecation) { d.message })
     Alias(a) -> option.map(a.deprecation, fn(d: pi.Deprecation) { d.message })
   }
-  SimpleItem(name:, documentation:, deprecation:, representation:)
+  SimpleItem(name:, kind: "type", documentation:, deprecation:, representation:)
 }
 
 fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
@@ -266,7 +268,13 @@ fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
       option.map(c.deprecation, fn(d: pi.Deprecation) { d.message })
     Constructor(..) -> None
   }
-  SimpleItem(name:, documentation:, deprecation:, representation:)
+  SimpleItem(
+    name:,
+    kind: "value",
+    documentation:,
+    deprecation:,
+    representation:,
+  )
 }
 
 fn render_constructor(c: pi.TypeConstructor) -> String {
