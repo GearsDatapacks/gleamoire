@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should report -t and -v error
+---
+InputError: Only one of -t and -v may be specified

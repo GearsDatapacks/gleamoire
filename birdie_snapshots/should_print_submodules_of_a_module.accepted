@@ -1,0 +1,17 @@
+---
+version: 1.2.0
+title: Should print submodules of a module
+file: ./test/gleamoire_test.gleam
+test_name: module_submodule_test
+---
+Help on module `mod`:
+
+Available submodules
+  - mod/sub
+  - mod/sub/other
+  - mod/sub2
+
+Documentation for module `mod`
+# The mod module
+## This is a subheading
+This module does things

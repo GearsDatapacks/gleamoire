@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should error because of name conflict
+---
+InterfaceError: There is both a type and value with that name. Please specify -t or -v to print the one you want

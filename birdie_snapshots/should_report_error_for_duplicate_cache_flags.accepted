@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should report error for duplicate cache flags
+---
+InputError: Custom cache location should only be specified once
