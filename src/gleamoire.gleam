@@ -20,9 +20,12 @@ const default_cache = ".cache/gleamoire"
 
 const hexdocs_url = "https://hexdocs.pm/"
 
+const gleamoire_version = "1.0.0"
+
 fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
+    args.Version -> Ok("Gleamoire v" <> gleamoire_version)
     args.Document(module:, print_mode:, cache_path:, refresh_cache:) ->
       resolve_input(module, print_mode, cache_path, refresh_cache)
   }

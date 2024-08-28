@@ -391,8 +391,13 @@ pub fn args_test() {
 pub fn help_args_test() {
   args.parse(["--help"])
   |> should.be_ok
-  |> string.inspect
-  |> birdie.snap("Should parse help argument")
+  |> should.equal(args.Help)
+}
+
+pub fn version_args_test() {
+  args.parse(["--version"])
+  |> should.be_ok
+  |> should.equal(args.Version)
 }
 
 pub fn args_tv_error_test() {
