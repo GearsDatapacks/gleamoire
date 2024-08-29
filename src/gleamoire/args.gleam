@@ -4,6 +4,7 @@ import gleamoire/error
 
 pub type Args {
   Help
+  Version
   Document(
     module: String,
     print_mode: PrintMode,
@@ -25,6 +26,7 @@ gleamoire <module> [flags]
 
 Flags:
 --help, -h     Print this help text
+--version      Print the currently installed version of Gleamoire
 --type, -t     Print the type associated with the given name
 --value, -v    Print the value associated with the given name
 --cache, -C    Use a different cache location for package-interface.json
@@ -37,6 +39,7 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
       value_flag: False,
       type_flag: False,
       help_flag: False,
+      version_flag: False,
       refresh_cache: False,
       module: None,
       cache_path: None,
@@ -51,9 +54,17 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   })
   case parsed {
     Parsed(help_flag: True, ..) -> Ok(Help)
+    Parsed(version_flag: True, ..) -> Ok(Version)
     Parsed(module: Some(module), cache_path:, refresh_cache:, ..) ->
       Ok(Document(module:, print_mode:, cache_path:, refresh_cache:))
-    Parsed(module: None, help_flag: False, ..) ->
+    // Special case for `gleamoire -v`, in case the user was trying to specify --version
+    Parsed(module: None, value_flag: True, ..) ->
+      Error(error.InputError(
+        "The -v flag must be used in combination with a module to document. "
+        <> "If you meant to print the current version, use --version instead. "
+        <> "See gleamoire --help for more information.",
+      ))
+    Parsed(module: None, ..) ->
       Error(error.InputError(
         "Please specify a module to document. See gleamoire --help for more information",
       ))
@@ -64,6 +75,7 @@ type Parsed {
   Parsed(
     value_flag: Bool,
     type_flag: Bool,
+    version_flag: Bool,
     help_flag: Bool,
     refresh_cache: Bool,
     cache_path: Option(String),
@@ -103,6 +115,11 @@ fn do_parse_args(
           case parsed.help_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
             False -> Ok(Parsed(..parsed, help_flag: True))
+          }
+        "--version" ->
+          case parsed.version_flag {
+            True -> Error(error.InputError("Flags can only be specified once"))
+            False -> Ok(Parsed(..parsed, version_flag: True))
           }
         "--refresh" | "-r" ->
           case parsed.help_flag {
