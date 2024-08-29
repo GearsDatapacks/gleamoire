@@ -33,11 +33,20 @@ fn document(args: args.Args) -> Result(String, error.Error) {
 }
 
 fn resolve_input(
-  module_item: String,
+  query: String,
   print_mode: args.PrintMode,
   cache_path: Option(String),
   refresh_cache: Bool,
 ) -> Result(String, error.Error) {
+  use #(package, module_item) <- result.try(case string.split(query, on: ":") {
+    [module_item] -> Ok(#(None, module_item))
+    ["", _] ->
+      Error(error.InputError(
+        "No package name found. Try specifying one in your query, for example : `wibble:wobble/mod.item`",
+      ))
+    [package, module_item] -> Ok(#(Some(package), module_item))
+    _ -> Error(error.InputError("Invalid package item query."))
+  })
   use #(module_path, item) <- result.try(case
     string.split(module_item, on: ".")
   {
@@ -82,43 +91,61 @@ fn resolve_input(
 
   // Retrieve package interface
   let sub_is_stdlib = is_stdlib(sub)
-  case main_module {
-    "gleam" if sub_is_stdlib == True ->
-      get_package_interface("gleam_stdlib", None, cache_path, refresh_cache)
-    "gleam" ->
-      get_package_interface(
-        "gleam_" <> result.unwrap(list.first(sub), ""),
-        None,
-        cache_path,
-        refresh_cache,
-      )
-    "gleam_community" ->
-      get_package_interface(
-        "gleam_community_" <> result.unwrap(list.first(sub), ""),
-        None,
-        cache_path,
-        refresh_cache,
-      )
-    module if main_module == current_module ->
-      get_package_interface(module, Some("."), cache_path, refresh_cache)
-    _ -> {
+  case package, main_module {
+    Some(package), _ -> {
       use dep <- result.try(
         tom.get_table(config, ["dependencies"])
         |> result.replace_error(error.UnexpectedError(
           "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
         )),
       )
-      let is_dep = dict.has_key(dep, main_module)
+      let is_dep = dict.has_key(dep, package)
       case is_dep {
         True ->
           get_package_interface(
-            main_module,
-            Some("./build/packages/" <> main_module),
+            package,
+            Some("./build/packages/" <> package),
             cache_path,
             refresh_cache,
           )
-        False ->
-          get_package_interface(main_module, None, cache_path, refresh_cache)
+        False -> get_package_interface(package, None, cache_path, refresh_cache)
+      }
+    }
+    None, "gleam" if sub_is_stdlib == True ->
+      get_package_interface("gleam_stdlib", None, cache_path, refresh_cache)
+    None, "gleam" ->
+      get_package_interface(
+        "gleam_" <> result.unwrap(list.first(sub), ""),
+        None,
+        cache_path,
+        refresh_cache,
+      )
+    None, "gleam_community" ->
+      get_package_interface(
+        "gleam_community_" <> result.unwrap(list.first(sub), ""),
+        None,
+        cache_path,
+        refresh_cache,
+      )
+    None, module if main_module == current_module ->
+      get_package_interface(module, Some("."), cache_path, refresh_cache)
+    None, module -> {
+      use dep <- result.try(
+        tom.get_table(config, ["dependencies"])
+        |> result.replace_error(error.UnexpectedError(
+          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
+        )),
+      )
+      let is_dep = dict.has_key(dep, module)
+      case is_dep {
+        True ->
+          get_package_interface(
+            module,
+            Some("./build/packages/" <> module),
+            cache_path,
+            refresh_cache,
+          )
+        False -> get_package_interface(module, None, cache_path, refresh_cache)
       }
     }
   }
@@ -138,7 +165,7 @@ fn is_stdlib(p: List(String)) -> Bool {
 }
 
 fn get_package_interface(
-  module_name: String,
+  package: String,
   module_path: Option(String),
   cache_path: Option(String),
   refresh_cache: Bool,
@@ -153,7 +180,7 @@ fn get_package_interface(
     option.unwrap(cache_path, home_dir <> "/" <> default_cache) <> "/"
 
   let package_interface_path =
-    cache_location <> module_name <> "/package-interface.json"
+    cache_location <> package <> "/package-interface.json"
 
   let cache_exists = simplifile.is_file(package_interface_path)
   use _ <- result.try(case refresh_cache, cache_exists {
@@ -185,7 +212,7 @@ fn get_package_interface(
       // Build if dep package
       use dep_interface <- result.try(build_package_interface(dep_path))
 
-      let package_interface_directory = cache_location <> module_name
+      let package_interface_directory = cache_location <> package
       use _ <- result.try(
         simplifile.create_directory_all(package_interface_directory)
         |> result.map_error(fn(error) {
@@ -225,7 +252,7 @@ fn get_package_interface(
     Ok(_), _ -> {
       // If all fails, query hexdocs
       use hex_req <- result.try(
-        request.to(hexdocs_url <> module_name <> "/package-interface.json")
+        request.to(hexdocs_url <> package <> "/package-interface.json")
         |> result.replace_error(error.UnexpectedError(
           "Failed to construct request url",
         )),
@@ -245,11 +272,11 @@ fn get_package_interface(
         200 -> Ok(Nil)
         _ ->
           Error(error.InterfaceError(
-            "Package " <> module_name <> " does not exist.",
+            "Package " <> package <> " does not exist.",
           ))
       })
 
-      let cache_directory = cache_location <> module_name
+      let cache_directory = cache_location <> package
       use _ <- result.try(
         simplifile.create_directory_all(cache_directory)
         |> result.map_error(fn(error) {
@@ -287,7 +314,7 @@ fn get_package_interface(
     }
     _, _ ->
       Error(error.InterfaceError(
-        "Unable to find " <> module_name <> "'s interface.",
+        "Unable to find " <> package <> "'s interface.",
       ))
   }
 }
@@ -363,7 +390,7 @@ fn get_docs(
 }
 
 pub fn main() {
-  let result = args.parse(argv.load().arguments) |> result.try(document)
+  let result = argv.load().arguments |> args.parse |> result.try(document)
 
   case result {
     Ok(docs) -> io.println(docs)
