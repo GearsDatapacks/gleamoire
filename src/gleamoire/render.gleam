@@ -7,6 +7,8 @@ import gleam/string
 import gleamoire/args
 import gleamoire/error
 
+const typevar_anchor = "a"
+
 pub fn document_module(
   module_name: String,
   module_interface: pi.Module,
@@ -49,7 +51,7 @@ pub fn document_module(
   let module_documentation =
     list_or_empty(
       "Documentation for module `" <> module_name <> "`\n",
-      module_interface.documentation,
+      module_interface.documentation |> list.map(string.trim_right),
       "\n",
       "",
     )
@@ -121,7 +123,7 @@ fn render_item(item: SimpleItem, module_name: String) -> String {
   <> item.representation
   <> case item.documentation {
     None | Some("") -> ""
-    Some(docs) -> "\n\n" <> docs <> "\n"
+    Some(docs) -> "\n\n" <> string.trim_right(docs)
   }
   <> case item.deprecation {
     None | Some("") -> ""
@@ -324,9 +326,8 @@ fn render_type(type_: pi.Type) -> String {
 }
 
 fn get_variable_symbol(id: Int) -> String {
-  let anchor = "a"
   let anchor_code =
-    anchor
+    typevar_anchor
     |> string.to_utf_codepoints
     |> list.map(string.utf_codepoint_to_int)
     |> list.first
@@ -335,5 +336,5 @@ fn get_variable_symbol(id: Int) -> String {
   |> result.try(string.utf_codepoint)
   |> result.map(list.wrap)
   |> result.map(string.from_utf_codepoints)
-  |> result.unwrap(anchor)
+  |> result.unwrap(typevar_anchor)
 }
