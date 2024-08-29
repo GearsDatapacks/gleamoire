@@ -393,7 +393,7 @@ pub fn main() {
   let result = argv.load().arguments |> args.parse |> result.try(document)
 
   case result {
-    Ok(docs) -> io.println(docs)
+    Ok(docs) -> docs |> string.trim_right |> io.println
     Error(error) -> io.println(error.to_string(error))
   }
 }
