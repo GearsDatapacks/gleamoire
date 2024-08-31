@@ -2,4 +2,4 @@
 version: 1.2.0
 title: Should report error for specifying multiple modules
 ---
-InputError: Please only specify one module to document
+InputError: Please only specify one name to document

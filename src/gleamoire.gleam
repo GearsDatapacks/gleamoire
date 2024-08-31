@@ -27,14 +27,14 @@ fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
     args.Version -> Ok("Gleamoire v" <> gleamoire_version)
-    args.Document(module:, print_mode:, cache_path:, refresh_cache:) -> {
-      use query <- result.try(parse_query(module))
+    args.Document(query:, print_mode:, cache_path:, refresh_cache:) -> {
+      use name <- result.try(parse_query(query))
       use interface <- result.try(package_interface(
-        query,
+        name,
         cache_path,
         refresh_cache,
       ))
-      let assert ParsedQuery(_, [main_module, ..sub], item) = query
+      let assert ParsedQuery(_, [main_module, ..sub], item) = name
       use docs <- result.try(get_docs(
         interface,
         [main_module, ..sub],
