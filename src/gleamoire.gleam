@@ -17,12 +17,18 @@ import glitzer/spinner
 import simplifile
 import tom
 
+/// Default location for cached package interfaces
+///
 const default_cache = ".cache/gleamoire"
 
+/// Default Hexdocs URL
+///
 const hexdocs_url = "https://hexdocs.pm/"
 
 const gleamoire_version = "1.0.0"
 
+/// Transforms command line arguments into appropriate output
+///
 fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
@@ -46,6 +52,8 @@ fn document(args: args.Args) -> Result(String, error.Error) {
   }
 }
 
+/// Holds parsed values from user query
+///
 pub type ParsedQuery {
   ParsedQuery(
     package: Option(String),
@@ -54,6 +62,10 @@ pub type ParsedQuery {
   )
 }
 
+/// Turns an arbitrary string into a parsed query
+/// The expected input looks like this : [package:]module/name[.item]
+/// Parts between brackets can be ommited
+///
 pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   use #(package, module_item) <- result.try(case string.split(query, on: ":") {
     [module_item] -> Ok(#(None, module_item))
@@ -87,6 +99,9 @@ pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   Ok(ParsedQuery(package, [main_module, ..sub], item))
 }
 
+/// Main package interface resolution entrypoint
+/// This is where we handle shorthands for gleam packages and edge cases
+///
 fn package_interface(
   query: ParsedQuery,
   cache_path: Option(String),
@@ -107,6 +122,8 @@ fn package_interface(
   |> build_or_cache_interface(cache_path, refresh_cache)
 }
 
+/// Returns whether p is part of the standard library
+///
 fn is_stdlib(p: List(String)) -> Bool {
   let stdlib = [
     "bit_array", "bool", "bytes_builder", "dict", "dynamic", "float", "function",
@@ -119,6 +136,9 @@ fn is_stdlib(p: List(String)) -> Bool {
   }
 }
 
+/// Handle cache package interface logic
+/// Here we decide to read from cache, refresh cache or initialize it
+///
 fn build_or_cache_interface(
   package: String,
   cache_path: Option(String),
@@ -150,7 +170,7 @@ fn build_or_cache_interface(
         }),
       )
       get_interface(package)
-      |> result.try(cache_file(_, cache_location, "package-interface.json"))
+      |> result.try(write_file(_, cache_location, "package-interface.json"))
     }
     False, Ok(True) -> {
       // Get cache
@@ -165,13 +185,15 @@ fn build_or_cache_interface(
       })
     }
     _, _ -> {
-      // Init
+      // Init cache
       get_interface(package)
-      |> result.try(cache_file(_, cache_location, "package-interface.json"))
+      |> result.try(write_file(_, cache_location, "package-interface.json"))
     }
   }
 }
 
+/// Decide to build cache from source or pull cache from Hex
+///
 fn get_interface(package: String) -> Result(String, error.Error) {
   case simplifile.is_file("./gleam.toml") {
     Ok(True) -> {
@@ -210,6 +232,8 @@ fn get_interface(package: String) -> Result(String, error.Error) {
   ))
 }
 
+/// Actually build package interface from source
+///
 fn build_package_interface(path: String) -> Result(String, error.Error) {
   let s =
     spinner.spinning_spinner()
@@ -264,6 +288,8 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
   interface
 }
 
+/// Pull docs from Hex
+///
 fn get_remote_interface(package: String) -> Result(String, error.Error) {
   let s =
     spinner.spinning_spinner()
@@ -298,7 +324,9 @@ fn get_remote_interface(package: String) -> Result(String, error.Error) {
   Ok(resp.body)
 }
 
-fn cache_file(
+/// Write string contents to file at provided location
+///
+fn write_file(
   content: String,
   path: String,
   filename: String,
@@ -340,6 +368,8 @@ fn cache_file(
   content
 }
 
+/// Main entrypoint for docs retrival
+///
 fn get_docs(
   json: String,
   module_path: List(String),
@@ -362,8 +392,7 @@ fn get_docs(
       <> interface.name
       <> " does not contain module "
       <> joined_path
-      <> ".
-Available modules: \n"
+      <> ".\nAvailable modules: \n"
       <> dict.keys(interface.modules)
       |> list.map(string.append("  - ", _))
       |> string.join("\n"),
@@ -377,6 +406,8 @@ Available modules: \n"
   }
 }
 
+/// Entrypoint to gleamoire
+///
 pub fn main() {
   let result = argv.load().arguments |> args.parse |> result.try(document)
 
