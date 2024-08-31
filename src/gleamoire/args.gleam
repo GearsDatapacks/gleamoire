@@ -19,7 +19,8 @@ pub type PrintMode {
   Value
 }
 
-pub const help_text = "Documents a gleam module, type or value, in the command line!
+pub const help_text = "A handy grimoire for gleam packages !
+Documents a gleam module, type or value, in the command line!
 
 Usage:
 gleamoire <query> [flags]
