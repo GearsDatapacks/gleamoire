@@ -27,17 +27,34 @@ fn document(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
     args.Version -> Ok("Gleamoire v" <> gleamoire_version)
-    args.Document(module:, print_mode:, cache_path:, refresh_cache:) ->
-      resolve_input(module, print_mode, cache_path, refresh_cache)
+    args.Document(module:, print_mode:, cache_path:, refresh_cache:) -> {
+      use query <- result.try(parse_query(module))
+      use interface <- result.try(package_interface(
+        query,
+        cache_path,
+        refresh_cache,
+      ))
+      let assert ParsedQuery(_, [main_module, ..sub], item) = query
+      use docs <- result.try(get_docs(
+        interface,
+        [main_module, ..sub],
+        item,
+        print_mode,
+      ))
+      Ok(docs)
+    }
   }
 }
 
-fn resolve_input(
-  query: String,
-  print_mode: args.PrintMode,
-  cache_path: Option(String),
-  refresh_cache: Bool,
-) -> Result(String, error.Error) {
+type ParsedQuery {
+  ParsedQuery(
+    package: Option(String),
+    module_path: List(String),
+    item: Option(String),
+  )
+}
+
+fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   use #(package, module_item) <- result.try(case string.split(query, on: ":") {
     [module_item] -> Ok(#(None, module_item))
     ["", _] ->
@@ -66,6 +83,15 @@ fn resolve_input(
     _ -> Ok(Nil)
   })
 
+  Ok(ParsedQuery(package, [main_module, ..sub], item))
+}
+
+fn package_interface(
+  query: ParsedQuery,
+  cache_path: Option(String),
+  refresh_cache: Bool,
+) {
+  let assert ParsedQuery(package, [main_module, ..sub], _item) = query
   use config_file <- result.try(
     simplifile.read("./gleam.toml")
     |> result.map_error(fn(error) {
@@ -130,26 +156,13 @@ fn resolve_input(
     None, module if main_module == current_module ->
       get_package_interface(module, Some("."), cache_path, refresh_cache)
     None, module -> {
-      use dep <- result.try(
-        tom.get_table(config, ["dependencies"])
-        |> result.replace_error(error.UnexpectedError(
-          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
-        )),
+      package_interface(
+        ParsedQuery(..query, package: Some(module)),
+        cache_path,
+        refresh_cache,
       )
-      let is_dep = dict.has_key(dep, module)
-      case is_dep {
-        True ->
-          get_package_interface(
-            module,
-            Some("./build/packages/" <> module),
-            cache_path,
-            refresh_cache,
-          )
-        False -> get_package_interface(module, None, cache_path, refresh_cache)
-      }
     }
   }
-  |> result.try(get_docs(_, [main_module, ..sub], item, print_mode))
 }
 
 fn is_stdlib(p: List(String)) -> Bool {
