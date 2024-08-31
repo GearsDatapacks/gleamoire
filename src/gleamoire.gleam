@@ -46,7 +46,7 @@ fn document(args: args.Args) -> Result(String, error.Error) {
   }
 }
 
-type ParsedQuery {
+pub type ParsedQuery {
   ParsedQuery(
     package: Option(String),
     module_path: List(String),
@@ -54,7 +54,7 @@ type ParsedQuery {
   )
 }
 
-fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
+pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   use #(package, module_item) <- result.try(case string.split(query, on: ":") {
     [module_item] -> Ok(#(None, module_item))
     ["", _] ->
@@ -67,8 +67,9 @@ fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   use #(module_path, item) <- result.try(case
     string.split(module_item, on: ".")
   {
-    [module_path, item] -> Ok(#(module_path, Some(item)))
+    [_, ""] -> Error(error.InputError("No item provided"))
     [module_path] -> Ok(#(module_path, None))
+    [module_path, item] -> Ok(#(module_path, Some(item)))
     _ -> Error(error.InputError("Invalid module item requested"))
   })
   // We can safely assert here because string.split will always
@@ -78,7 +79,7 @@ fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   use _ <- result.try(case main_module {
     "" ->
       Error(error.InputError(
-        "I did not understand what module you are referring to (should respect main/module.item syntax)",
+        "I did not understand what module you are referring to (should respect [package:]main/module.item syntax)",
       ))
     _ -> Ok(Nil)
   })
@@ -372,11 +373,10 @@ fn get_docs(
     )),
   )
 
-  case item, module_interface.documentation {
-    None, _module_documentation ->
-      Ok(document_module(joined_path, module_interface, interface))
-    Some(item), _ ->
+  case item {
+    Some(item) ->
       document_item(item, joined_path, module_interface, interface, print_mode)
+    None -> Ok(document_module(joined_path, module_interface, interface))
   }
 }
 

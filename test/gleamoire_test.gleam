@@ -3,6 +3,7 @@ import gleam/dict
 import gleam/option.{None, Some}
 import gleam/package_interface as pi
 import gleam/string
+import gleamoire
 import gleamoire/args
 import gleamoire/error
 import gleamoire/render
@@ -466,4 +467,65 @@ pub fn args_duplicate_cache_error_test() {
   |> should.be_error
   |> error.to_string
   |> birdie.snap("Should report error for duplicate cache flags")
+}
+
+pub fn parse_query_explicit_package_test() {
+  gleamoire.parse_query("wibble:weebble/wobble.bleep")
+  |> should.be_ok
+  |> should.equal(gleamoire.ParsedQuery(
+    Some("wibble"),
+    ["weebble", "wobble"],
+    Some("bleep"),
+  ))
+}
+
+pub fn parse_query_implicit_package_test() {
+  gleamoire.parse_query("wibble/wobble.bleep")
+  |> should.be_ok
+  |> should.equal(gleamoire.ParsedQuery(
+    None,
+    ["wibble", "wobble"],
+    Some("bleep"),
+  ))
+}
+
+pub fn parse_query_too_many_packages_test() {
+  gleamoire.parse_query("wibble:wibble:wibble/wobble.bleep")
+  |> should.be_error
+  |> error.to_string
+  |> birdie.snap("Should report too many packages")
+}
+
+pub fn parse_query_no_item_test() {
+  gleamoire.parse_query("wibble/wobble")
+  |> should.be_ok
+  |> should.equal(gleamoire.ParsedQuery(None, ["wibble", "wobble"], None))
+}
+
+pub fn parse_query_no_module_item_test() {
+  gleamoire.parse_query("wibble:")
+  |> should.be_error
+  |> error.to_string
+  |> birdie.snap("Should report wrong query empty module")
+}
+
+pub fn parse_query_no_package_test() {
+  gleamoire.parse_query(":module/main.item")
+  |> should.be_error
+  |> error.to_string
+  |> birdie.snap("Should report wrong query empty package")
+}
+
+pub fn parse_query_too_many_items_test() {
+  gleamoire.parse_query("wibble.wooble.whoopsi")
+  |> should.be_error
+  |> error.to_string
+  |> birdie.snap("Should report too many items")
+}
+
+pub fn parse_query_empty_item_test() {
+  gleamoire.parse_query("wibble.")
+  |> should.be_error
+  |> error.to_string
+  |> birdie.snap("Should report empty item")
 }

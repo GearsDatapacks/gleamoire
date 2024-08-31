@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should report too many items
+---
+InputError: Invalid module item requested
