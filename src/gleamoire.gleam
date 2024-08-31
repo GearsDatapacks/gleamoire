@@ -90,8 +90,39 @@ fn package_interface(
   query: ParsedQuery,
   cache_path: Option(String),
   refresh_cache: Bool,
-) {
+) -> Result(String, error.Error) {
   let assert ParsedQuery(package, [main_module, ..sub], _item) = query
+
+  // Retrieve package interface
+  let sub_is_stdlib = is_stdlib(sub)
+  case package, main_module {
+    Some(package), _ -> package
+    None, "gleam" if sub_is_stdlib == True -> "gleam_stdlib"
+    None, "gleam" -> "gleam_" <> result.unwrap(list.first(sub), "")
+    None, "gleam_community" ->
+      "gleam_community_" <> result.unwrap(list.first(sub), "")
+    None, module -> module
+  }
+  |> build_or_cache_interface(cache_path, refresh_cache)
+}
+
+fn is_stdlib(p: List(String)) -> Bool {
+  let stdlib = [
+    "bit_array", "bool", "bytes_builder", "dict", "dynamic", "float", "function",
+    "int", "io", "iterator", "list", "option", "order", "pair", "queue", "regex",
+    "result", "set", "string", "string_builder", "uri",
+  ]
+  case p {
+    [] -> False
+    [e, ..] -> list.contains(stdlib, e)
+  }
+}
+
+fn build_or_cache_interface(
+  package: String,
+  cache_path: Option(String),
+  refresh_cache: Bool,
+) -> Result(String, error.Error) {
   use config_file <- result.try(
     simplifile.read("./gleam.toml")
     |> result.map_error(fn(error) {
@@ -108,81 +139,28 @@ fn package_interface(
       "gleam.toml is malformed. Please ensure that you have a valid gleam.toml in your project",
     )),
   )
-  use current_module <- result.try(
+  use dep <- result.try(
+    tom.get_table(config, ["dependencies"])
+    |> result.replace_error(error.UnexpectedError(
+      "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
+    )),
+  )
+  use current_package <- result.try(
     tom.get_string(config, ["name"])
     |> result.replace_error(error.UnexpectedError(
       "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
     )),
   )
 
-  // Retrieve package interface
-  let sub_is_stdlib = is_stdlib(sub)
-  case package, main_module {
-    Some(package), _ -> {
-      use dep <- result.try(
-        tom.get_table(config, ["dependencies"])
-        |> result.replace_error(error.UnexpectedError(
-          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
-        )),
-      )
-      let is_dep = dict.has_key(dep, package)
-      case is_dep {
-        True ->
-          get_package_interface(
-            package,
-            Some("./build/packages/" <> package),
-            cache_path,
-            refresh_cache,
-          )
-        False -> get_package_interface(package, None, cache_path, refresh_cache)
-      }
-    }
-    None, "gleam" if sub_is_stdlib == True ->
-      get_package_interface("gleam_stdlib", None, cache_path, refresh_cache)
-    None, "gleam" ->
-      get_package_interface(
-        "gleam_" <> result.unwrap(list.first(sub), ""),
-        None,
-        cache_path,
-        refresh_cache,
-      )
-    None, "gleam_community" ->
-      get_package_interface(
-        "gleam_community_" <> result.unwrap(list.first(sub), ""),
-        None,
-        cache_path,
-        refresh_cache,
-      )
-    None, module if main_module == current_module ->
-      get_package_interface(module, Some("."), cache_path, refresh_cache)
-    None, module -> {
-      package_interface(
-        ParsedQuery(..query, package: Some(module)),
-        cache_path,
-        refresh_cache,
-      )
-    }
+  let package_src = case
+    package == current_package,
+    dict.has_key(dep, package)
+  {
+    True, _ -> Some(".")
+    False, True -> Some("./build/packages/" <> package)
+    _, _ -> None
   }
-}
 
-fn is_stdlib(p: List(String)) -> Bool {
-  let stdlib = [
-    "bit_array", "bool", "bytes_builder", "dict", "dynamic", "float", "function",
-    "int", "io", "iterator", "list", "option", "order", "pair", "queue", "regex",
-    "result", "set", "string", "string_builder", "uri",
-  ]
-  case p {
-    [] -> False
-    [e, ..] -> list.contains(stdlib, e)
-  }
-}
-
-fn get_package_interface(
-  package: String,
-  module_path: Option(String),
-  cache_path: Option(String),
-  refresh_cache: Bool,
-) -> Result(String, error.Error) {
   use home_dir <- result.try(
     gleamyshell.home_directory()
     |> result.replace_error(error.UnexpectedError(
@@ -208,7 +186,7 @@ fn get_package_interface(
     _, _ -> Ok(Nil)
   })
 
-  case cache_exists, module_path {
+  case cache_exists, package_src {
     Ok(True), _ if !refresh_cache -> {
       // If cache file exists
       simplifile.read(package_interface_path)
