@@ -326,9 +326,9 @@ fn get_package_interface(
       resp.body
     }
     _, _ ->
-      Error(error.InterfaceError(
-        "Unable to find " <> package <> "'s interface.",
-      ))
+      Error(error.InterfaceError("Unable to find " <> package <> "'s interface.
+        If you are documenting a module inside a package with a different name,
+        try specifying the package name explicitly : `package:module/wibble.item`"))
   }
 }
 
