@@ -150,11 +150,7 @@ fn build_or_cache_interface(
         }),
       )
       get_interface(package)
-      |> result.try(cache_file(
-        _,
-        cache_location <> package,
-        "package-interface.json",
-      ))
+      |> result.try(cache_file(_, cache_location, "package-interface.json"))
     }
     False, Ok(True) -> {
       // Get cache
@@ -171,11 +167,7 @@ fn build_or_cache_interface(
     _, _ -> {
       // Init
       get_interface(package)
-      |> result.try(cache_file(
-        _,
-        cache_location <> package,
-        "package-interface.json",
-      ))
+      |> result.try(cache_file(_, cache_location, "package-interface.json"))
     }
   }
 }
@@ -273,6 +265,11 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
 }
 
 fn get_remote_interface(package: String) -> Result(String, error.Error) {
+  let s =
+    spinner.spinning_spinner()
+    |> spinner.with_right_text(" Pulling docs from Hex")
+    |> spinner.spin
+
   use hex_req <- result.try(
     request.to(hexdocs_url <> package <> "/package-interface.json")
     |> result.replace_error(error.UnexpectedError(
@@ -289,12 +286,15 @@ fn get_remote_interface(package: String) -> Result(String, error.Error) {
     }),
   )
 
+  spinner.finish(s)
+
   // Make sure we don't cache data on 404 or other failed codes
   use _ <- result.try(case resp.status {
     200 -> Ok(Nil)
     _ ->
       Error(error.InterfaceError("Package " <> package <> " does not exist."))
   })
+
   Ok(resp.body)
 }
 
@@ -358,7 +358,15 @@ fn get_docs(
   use module_interface <- result.try(
     dict.get(interface.modules, joined_path)
     |> result.replace_error(error.InterfaceError(
-      "Package " <> interface.name <> " does not contain module " <> joined_path,
+      "Package "
+      <> interface.name
+      <> " does not contain module "
+      <> joined_path
+      <> ".
+Available modules: \n"
+      <> dict.keys(interface.modules)
+      |> list.map(string.append("  - ", _))
+      |> string.join("\n"),
     )),
   )
 
