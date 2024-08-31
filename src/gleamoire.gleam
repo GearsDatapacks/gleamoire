@@ -124,44 +124,6 @@ fn build_or_cache_interface(
   cache_path: Option(String),
   refresh_cache: Bool,
 ) -> Result(String, error.Error) {
-  use config_file <- result.try(
-    simplifile.read("./gleam.toml")
-    |> result.map_error(fn(error) {
-      error.UnexpectedError(
-        "Could not open gleam.toml: "
-        <> simplifile.describe_error(error)
-        <> ". Please ensure that gleamoire is run inside a gleam project",
-      )
-    }),
-  )
-  use config <- result.try(
-    tom.parse(config_file)
-    |> result.replace_error(error.UnexpectedError(
-      "gleam.toml is malformed. Please ensure that you have a valid gleam.toml in your project",
-    )),
-  )
-  use dep <- result.try(
-    tom.get_table(config, ["dependencies"])
-    |> result.replace_error(error.UnexpectedError(
-      "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
-    )),
-  )
-  use current_package <- result.try(
-    tom.get_string(config, ["name"])
-    |> result.replace_error(error.UnexpectedError(
-      "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
-    )),
-  )
-
-  let package_src = case
-    package == current_package,
-    dict.has_key(dep, package)
-  {
-    True, _ -> Some(".")
-    False, True -> Some("./build/packages/" <> package)
-    _, _ -> None
-  }
-
   use home_dir <- result.try(
     gleamyshell.home_directory()
     |> result.replace_error(error.UnexpectedError(
@@ -169,146 +131,91 @@ fn build_or_cache_interface(
     )),
   )
   let cache_location =
-    option.unwrap(cache_path, home_dir <> "/" <> default_cache) <> "/"
+    option.unwrap(cache_path, home_dir <> "/" <> default_cache)
+    <> "/"
+    <> package
 
-  let package_interface_path =
-    cache_location <> package <> "/package-interface.json"
+  let interface_path = cache_location <> "/package-interface.json"
 
-  let cache_exists = simplifile.is_file(package_interface_path)
-  use _ <- result.try(case refresh_cache, cache_exists {
+  let cache_exists = simplifile.is_file(interface_path)
+  case refresh_cache, cache_exists {
     True, Ok(True) -> {
-      simplifile.delete(package_interface_path)
-      |> result.map_error(fn(error) {
-        error.UnexpectedError(
-          "Failed to delete cache file: " <> simplifile.describe_error(error),
-        )
-      })
+      // Refresh cache
+      use _ <- result.try(
+        simplifile.delete(interface_path)
+        |> result.map_error(fn(error) {
+          error.UnexpectedError(
+            "Failed to delete cache file: " <> simplifile.describe_error(error),
+          )
+        }),
+      )
+      get_interface(package)
+      |> result.try(cache_file(
+        _,
+        cache_location <> package,
+        "package-interface.json",
+      ))
     }
-    _, _ -> Ok(Nil)
-  })
-
-  case cache_exists, package_src {
-    Ok(True), _ if !refresh_cache -> {
-      // If cache file exists
-      simplifile.read(package_interface_path)
+    False, Ok(True) -> {
+      // Get cache
+      simplifile.read(interface_path)
       |> result.map_error(fn(error) {
-        error.UnexpectedError(
+        error.FileError(
           "Failed to read "
-          <> package_interface_path
+          <> interface_path
           <> ": "
           <> simplifile.describe_error(error),
         )
       })
     }
-    _, Some(dep_path) -> {
-      // Build if dep package
-      use dep_interface <- result.try(build_package_interface(dep_path))
-
-      let package_interface_directory = cache_location <> package
-      use _ <- result.try(
-        simplifile.create_directory_all(package_interface_directory)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to create directory "
-            <> package_interface_directory
-            <> ": "
-            <> simplifile.describe_error(error),
-          )
-        }),
-      )
-      use _ <- result.try(
-        simplifile.create_file(package_interface_path)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to create file "
-            <> package_interface_path
-            <> ": "
-            <> simplifile.describe_error(error),
-          )
-        }),
-      )
-      use _ <- result.map(
-        simplifile.write(package_interface_path, dep_interface)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to write to file "
-            <> package_interface_path
-            <> ": "
-            <> simplifile.describe_error(error),
-          )
-        }),
-      )
-
-      dep_interface
+    _, _ -> {
+      // Init
+      get_interface(package)
+      |> result.try(cache_file(
+        _,
+        cache_location <> package,
+        "package-interface.json",
+      ))
     }
-    Ok(_), _ -> {
-      // If all fails, query hexdocs
-      use hex_req <- result.try(
-        request.to(hexdocs_url <> package <> "/package-interface.json")
+  }
+}
+
+fn get_interface(package: String) -> Result(String, error.Error) {
+  case simplifile.is_file("./gleam.toml") {
+    Ok(True) -> {
+      let assert Ok(config_file) = simplifile.read("./gleam.toml")
+      use config <- result.try(
+        tom.parse(config_file)
         |> result.replace_error(error.UnexpectedError(
-          "Failed to construct request url",
+          "gleam.toml is malformed. Please ensure that you have a valid gleam.toml in your project",
+        )),
+      )
+      use dep <- result.try(
+        tom.get_table(config, ["dependencies"])
+        |> result.replace_error(error.UnexpectedError(
+          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
+        )),
+      )
+      use current_package <- result.try(
+        tom.get_string(config, ["name"])
+        |> result.replace_error(error.UnexpectedError(
+          "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
         )),
       )
 
-      use resp <- result.try(
-        httpc.send(hex_req)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to query " <> hex_req.path <> ": " <> string.inspect(error),
-          )
-        }),
-      )
-
-      // Make sure we don't cache data on 404 or other failed codes
-      use _ <- result.try(case resp.status {
-        200 -> Ok(Nil)
-        _ ->
-          Error(error.InterfaceError(
-            "Package " <> package <> " does not exist.",
-          ))
-      })
-
-      let cache_directory = cache_location <> package
-      use _ <- result.try(
-        simplifile.create_directory_all(cache_directory)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to create directory "
-            <> cache_directory
-            <> ": "
-            <> simplifile.describe_error(error),
-          )
-        }),
-      )
-      use _ <- result.try(
-        simplifile.create_file(package_interface_path)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to create file "
-            <> package_interface_path
-            <> ": "
-            <> simplifile.describe_error(error),
-          )
-        }),
-      )
-      use _ <- result.map(
-        simplifile.write(package_interface_path, resp.body)
-        |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to write to file "
-            <> package_interface_path
-            <> ": "
-            <> simplifile.describe_error(error),
-          )
-        }),
-      )
-      resp.body
+      case package == current_package, dict.has_key(dep, package) {
+        True, _ -> build_package_interface(".")
+        False, True -> build_package_interface("./build/packages/" <> package)
+        _, _ -> get_remote_interface(package)
+      }
     }
-    _, _ ->
-      Error(error.InterfaceError("Unable to find " <> package <> "'s interface.
-        If you are documenting a module inside a package with a different name,
-        try specifying the package name explicitly : `package:module/wibble.item`"))
+    Ok(False) | Error(_) -> get_remote_interface(package)
   }
+  |> result.replace_error(error.InterfaceError(
+    "Unable to find " <> package <> "'s interface.
+        If you are documenting a module inside a package with a different name,
+        try specifying the package name explicitly : `package:module/wibble.item`",
+  ))
 }
 
 fn build_package_interface(path: String) -> Result(String, error.Error) {
@@ -338,17 +245,99 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
     }
   }
 
+  let interface =
+    simplifile.read(interface_path)
+    |> result.map_error(fn(error) {
+      error.FileError(
+        "Failed to read "
+        <> interface_path
+        <> ": "
+        <> simplifile.describe_error(error),
+      )
+    })
+
+  let _ =
+    simplifile.delete(interface_path)
+    |> result.map_error(fn(error) {
+      error.FileError(
+        "Failed to cleanup built "
+        <> interface_path
+        <> ": "
+        <> simplifile.describe_error(error),
+      )
+    })
+
   spinner.finish(s)
 
-  simplifile.read(interface_path)
-  |> result.map_error(fn(error) {
-    error.UnexpectedError(
-      "Failed to read "
-      <> interface_path
-      <> ": "
-      <> simplifile.describe_error(error),
-    )
+  interface
+}
+
+fn get_remote_interface(package: String) -> Result(String, error.Error) {
+  use hex_req <- result.try(
+    request.to(hexdocs_url <> package <> "/package-interface.json")
+    |> result.replace_error(error.UnexpectedError(
+      "Failed to construct request url",
+    )),
+  )
+
+  use resp <- result.try(
+    httpc.send(hex_req)
+    |> result.map_error(fn(error) {
+      error.UnexpectedError(
+        "Failed to query " <> hex_req.path <> ": " <> string.inspect(error),
+      )
+    }),
+  )
+
+  // Make sure we don't cache data on 404 or other failed codes
+  use _ <- result.try(case resp.status {
+    200 -> Ok(Nil)
+    _ ->
+      Error(error.InterfaceError("Package " <> package <> " does not exist."))
   })
+  Ok(resp.body)
+}
+
+fn cache_file(
+  content: String,
+  path: String,
+  filename: String,
+) -> Result(String, error.Error) {
+  let file_path = path <> "/" <> filename
+  use _ <- result.try(
+    simplifile.create_directory_all(path)
+    |> result.map_error(fn(error) {
+      error.FileError(
+        "Failed to create directory "
+        <> path
+        <> ": "
+        <> simplifile.describe_error(error),
+      )
+    }),
+  )
+  use _ <- result.try(
+    simplifile.create_file(file_path)
+    |> result.map_error(fn(error) {
+      error.FileError(
+        "Failed to create file "
+        <> file_path
+        <> ": "
+        <> simplifile.describe_error(error),
+      )
+    }),
+  )
+  use _ <- result.map(
+    simplifile.write(file_path, content)
+    |> result.map_error(fn(error) {
+      error.FileError(
+        "Failed to write to file "
+        <> file_path
+        <> ": "
+        <> simplifile.describe_error(error),
+      )
+    }),
+  )
+  content
 }
 
 fn get_docs(
