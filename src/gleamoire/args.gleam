@@ -33,6 +33,8 @@ Flags:
 --cache, -C    Use a different cache location for package-interface.json
 --refresh, -r  Refresh the cache for the documented module, in case it is outdataded"
 
+/// Parse a list of strings into structured arguments
+///
 pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   use parsed <- result.try(do_parse_args(
     args,
@@ -72,6 +74,8 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   }
 }
 
+/// Represent current state of argument parsing
+///
 type Parsed {
   Parsed(
     value_flag: Bool,
@@ -84,6 +88,8 @@ type Parsed {
   )
 }
 
+/// Actually parse input from command line in a fold-like fashion
+///
 fn do_parse_args(
   args: List(String),
   parsed: Parsed,
