@@ -95,7 +95,7 @@ pub fn document_item(
   case type_, value {
     Error(_), Error(_) ->
       Error(error.InterfaceError(
-        "No item has been found with the name " <> name,
+        "The module " <> module_name <> " does not contain an item with the name " <> name,
       ))
     Ok(type_docs), Error(_) -> Ok(type_docs)
     Error(_), Ok(value_docs) -> Ok(value_docs)
