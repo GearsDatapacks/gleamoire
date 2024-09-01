@@ -7,6 +7,8 @@ pub type Error {
   InterfaceError(String)
   /// Something went wrong with IO
   FileError(String)
+  /// Something went wrong when building local docs
+  BuildError(String)
   /// No idea what went wrong, but something did definitely go wrong
   UnexpectedError(String)
 }
@@ -18,6 +20,7 @@ pub fn to_string(error: Error) -> String {
     InputError(message) -> "InputError: " <> message
     InterfaceError(message) -> "InterfaceError: " <> message
     FileError(message) -> "FileError: " <> message
+    BuildError(message) -> "BuildError: " <> message
     UnexpectedError(message) -> "Unexpected error: " <> message
   }
 }

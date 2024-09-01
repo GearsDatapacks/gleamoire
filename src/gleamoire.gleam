@@ -225,11 +225,6 @@ fn get_interface(package: String) -> Result(String, error.Error) {
     }
     Ok(False) | Error(_) -> get_remote_interface(package)
   }
-  |> result.replace_error(error.InterfaceError(
-    "Unable to find " <> package <> "'s interface.
-        If you are documenting a module inside a package with a different name,
-        try specifying the package name explicitly : `package:module/wibble.item`",
-  ))
 }
 
 /// Actually build package interface from source
@@ -286,11 +281,14 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
   spinner.finish(s)
 
   interface
+  |> result.replace_error(error.BuildError(
+    "Unable to build interface at location " <> path,
+  ))
 }
 
 /// Pull docs from Hex
 ///
-fn get_remote_interface(package: String) -> Result(String, error.Error) {
+pub fn get_remote_interface(package: String) -> Result(String, error.Error) {
   let s =
     spinner.spinning_spinner()
     |> spinner.with_right_text(" Pulling docs from Hex")
@@ -317,8 +315,9 @@ fn get_remote_interface(package: String) -> Result(String, error.Error) {
   // Make sure we don't cache data on 404 or other failed codes
   use _ <- result.try(case resp.status {
     200 -> Ok(Nil)
-    _ ->
-      Error(error.InterfaceError("Package " <> package <> " does not exist."))
+    _ -> Error(error.InterfaceError("Package " <> package <> " does not exist.
+      If you are documenting a module inside a package with a different name,
+      try specifying the package name explicitly : `package:module/wibble.item`"))
   })
 
   Ok(resp.body)

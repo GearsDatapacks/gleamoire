@@ -408,6 +408,19 @@ pub fn item_conflict_resolution_test() {
   |> birdie.snap("Should print type with name")
 }
 
+pub fn pull_known_package_test() {
+  gleamoire.get_remote_interface("argv")
+  |> should.be_ok
+  |> birdie.snap("Got argv documentation from Hex")
+}
+
+pub fn pull_unknown_package_test() {
+  gleamoire.get_remote_interface("impossibly_impossible_name_to_guess")
+  |> should.be_error
+  |> error.to_string
+  |> birdie.snap("Should report unknown package on hex")
+}
+
 pub fn args_test() {
   args.parse(["-t", "lustre.Error", "-C", "~/.cache", "-r"])
   |> should.be_ok
