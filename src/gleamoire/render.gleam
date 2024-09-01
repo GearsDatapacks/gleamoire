@@ -7,6 +7,14 @@ import gleam/string
 import gleamoire/args
 import gleamoire/error
 
+/// Starting character for type variable representation
+/// can be modified to display a different sequence
+const typevar_anchor = "a"
+
+/// Generate documentation for a module
+/// Include available submodules, types and values in addition to the documentation field
+/// This is supposed to show as much information as the module page in the html docs
+///
 pub fn document_module(
   module_name: String,
   module_interface: pi.Module,
@@ -49,7 +57,7 @@ pub fn document_module(
   let module_documentation =
     list_or_empty(
       "Documentation for module `" <> module_name <> "`\n",
-      module_interface.documentation,
+      module_interface.documentation |> list.map(string.trim_right),
       "\n",
       "",
     )
@@ -57,6 +65,9 @@ pub fn document_module(
   available_modules <> module_documentation
 }
 
+/// Render a list of strings
+/// Feeding the empty list produces the empty string ""
+///
 fn list_or_empty(
   prefix: String,
   list: List(String),
@@ -66,6 +77,9 @@ fn list_or_empty(
   list_or_none(prefix, list, separator, suffix) |> option.unwrap("")
 }
 
+/// Render a list of strings
+/// Feeding the empty list produces None
+///
 fn list_or_none(
   prefix: String,
   list: List(String),
@@ -93,7 +107,10 @@ pub fn document_item(
   case type_, value {
     Error(_), Error(_) ->
       Error(error.InterfaceError(
-        "No item has been found with the name " <> name,
+        "The module "
+        <> module_name
+        <> " does not contain an item with the name "
+        <> name,
       ))
     Ok(type_docs), Error(_) -> Ok(type_docs)
     Error(_), Ok(value_docs) -> Ok(value_docs)
@@ -110,6 +127,10 @@ pub fn document_item(
   |> result.map(render_item(_, module_name))
 }
 
+/// Generate documentation for an item (type or value)
+/// Include representation of the item in addition to the documentation field
+/// This is supposed to show as much information as the module page in the html docs
+///
 fn render_item(item: SimpleItem, module_name: String) -> String {
   "Documentation for "
   <> item.kind
@@ -121,7 +142,7 @@ fn render_item(item: SimpleItem, module_name: String) -> String {
   <> item.representation
   <> case item.documentation {
     None | Some("") -> ""
-    Some(docs) -> "\n\n" <> docs <> "\n"
+    Some(docs) -> "\n\n" <> string.trim_right(docs)
   }
   <> case item.deprecation {
     None | Some("") -> ""
@@ -130,17 +151,20 @@ fn render_item(item: SimpleItem, module_name: String) -> String {
   }
 }
 
+/// Group Types together
 type TypeInterface {
   Type(pi.TypeDefinition)
   Alias(pi.TypeAlias)
 }
 
+/// Group Values together
 type ValueInterface {
   Constant(pi.Constant)
   Function(pi.Function)
   Constructor(cons: pi.TypeConstructor, parent: SimpleItem)
 }
 
+/// Represents a simplified Item from the package interface
 type SimpleItem {
   SimpleItem(
     name: String,
@@ -151,6 +175,7 @@ type SimpleItem {
   )
 }
 
+/// Represents a simplified Module from the package interface
 type SimpleModule {
   SimpleModule(
     submodules: List(String),
@@ -159,6 +184,8 @@ type SimpleModule {
   )
 }
 
+/// Make a package interface module simpler for our documenting purposes
+///
 fn simplify_module_interface(
   module_name: String,
   interface: pi.Module,
@@ -209,6 +236,9 @@ fn simplify_module_interface(
   SimpleModule(types:, values:, submodules:)
 }
 
+/// Make a type simpler for our documenting purposes
+/// Here we generate the representation for a type
+///
 fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
   let documentation = case type_ {
     Type(t) -> t.documentation
@@ -252,6 +282,9 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
   SimpleItem(name:, kind: "type", documentation:, deprecation:, representation:)
 }
 
+/// Make a value simpler for our documenting purposes
+/// Here we generate the representation for a type
+///
 fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
   let documentation = case value {
     Function(f) -> f.documentation
@@ -282,17 +315,23 @@ fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
   )
 }
 
+/// Actually render constructor representation
+///
 fn render_constructor(c: pi.TypeConstructor) -> String {
   let pi.TypeConstructor(_, name, parameters) = c
   name
   <> list_or_empty("(", parameters |> list.map(render_parameter), ", ", ")")
 }
 
+/// Actually render parameter representation
+///
 fn render_parameter(p: pi.Parameter) -> String {
   p.label |> option.map(fn(l) { l <> ": " }) |> option.unwrap("")
   <> render_type(p.type_)
 }
 
+/// Actually render function representation
+///
 fn render_function(
   name: String,
   parameters: List(pi.Parameter),
@@ -313,6 +352,8 @@ fn render_function(
   <> return |> option.map(render_type) |> option.unwrap("Nil")
 }
 
+/// Actually render a type (as in gleam_package_interface.Type) representation
+///
 fn render_type(type_: pi.Type) -> String {
   case type_ {
     pi.Tuple(elements) ->
@@ -328,10 +369,12 @@ fn render_type(type_: pi.Type) -> String {
   }
 }
 
+/// Get type variable representation from it's ID
+/// Based on the anchor definied in the module so that it can be customized
+///
 fn get_variable_symbol(id: Int) -> String {
-  let anchor = "a"
   let anchor_code =
-    anchor
+    typevar_anchor
     |> string.to_utf_codepoints
     |> list.map(string.utf_codepoint_to_int)
     |> list.first
@@ -340,5 +383,5 @@ fn get_variable_symbol(id: Int) -> String {
   |> result.try(string.utf_codepoint)
   |> result.map(list.wrap)
   |> result.map(string.from_utf_codepoints)
-  |> result.unwrap(anchor)
+  |> result.unwrap(typevar_anchor)
 }

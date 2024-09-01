@@ -1,0 +1,5 @@
+---
+version: 1.2.0
+title: Should report wrong query empty module
+---
+InputError: I did not understand what module you are referring to (should respect [package:]main/module.item syntax)

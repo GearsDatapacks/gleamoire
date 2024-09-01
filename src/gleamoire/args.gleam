@@ -6,7 +6,7 @@ pub type Args {
   Help
   Version
   Document(
-    module: String,
+    query: String,
     print_mode: PrintMode,
     cache_path: Option(String),
     refresh_cache: Bool,
@@ -19,10 +19,11 @@ pub type PrintMode {
   Value
 }
 
-pub const help_text = "Documents a gleam module, type or value, in the command line!
+pub const help_text = "A handy grimoire for gleam packages !
+Documents a gleam module, type or value, in the command line!
 
 Usage:
-gleamoire <module> [flags]
+gleamoire <query> [flags]
 
 Flags:
 --help, -h     Print this help text
@@ -32,6 +33,8 @@ Flags:
 --cache, -C    Use a different cache location for package-interface.json
 --refresh, -r  Refresh the cache for the documented module, in case it is outdataded"
 
+/// Parse a list of strings into structured arguments
+///
 pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   use parsed <- result.try(do_parse_args(
     args,
@@ -41,7 +44,7 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
       help_flag: False,
       version_flag: False,
       refresh_cache: False,
-      module: None,
+      query: None,
       cache_path: None,
     ),
   ))
@@ -55,22 +58,24 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
   case parsed {
     Parsed(help_flag: True, ..) -> Ok(Help)
     Parsed(version_flag: True, ..) -> Ok(Version)
-    Parsed(module: Some(module), cache_path:, refresh_cache:, ..) ->
-      Ok(Document(module:, print_mode:, cache_path:, refresh_cache:))
+    Parsed(query: Some(query), cache_path:, refresh_cache:, ..) ->
+      Ok(Document(query:, print_mode:, cache_path:, refresh_cache:))
     // Special case for `gleamoire -v`, in case the user was trying to specify --version
-    Parsed(module: None, value_flag: True, ..) ->
+    Parsed(query: None, value_flag: True, ..) ->
       Error(error.InputError(
         "The -v flag must be used in combination with a module to document. "
         <> "If you meant to print the current version, use --version instead. "
         <> "See gleamoire --help for more information.",
       ))
-    Parsed(module: None, ..) ->
+    Parsed(query: None, ..) ->
       Error(error.InputError(
         "Please specify a module to document. See gleamoire --help for more information",
       ))
   }
 }
 
+/// Represent current state of argument parsing
+///
 type Parsed {
   Parsed(
     value_flag: Bool,
@@ -79,10 +84,12 @@ type Parsed {
     help_flag: Bool,
     refresh_cache: Bool,
     cache_path: Option(String),
-    module: Option(String),
+    query: Option(String),
   )
 }
 
+/// Actually parse input from command line in a fold-like fashion
+///
 fn do_parse_args(
   args: List(String),
   parsed: Parsed,
@@ -127,12 +134,10 @@ fn do_parse_args(
             False -> Ok(Parsed(..parsed, refresh_cache: True))
           }
         _ ->
-          case parsed.module {
+          case parsed.query {
             Some(_) ->
-              Error(error.InputError(
-                "Please only specify one module to document",
-              ))
-            None -> Ok(Parsed(..parsed, module: Some(arg)))
+              Error(error.InputError("Please only specify one name to document"))
+            None -> Ok(Parsed(..parsed, query: Some(arg)))
           }
       }
       |> result.try(do_parse_args(args, _))

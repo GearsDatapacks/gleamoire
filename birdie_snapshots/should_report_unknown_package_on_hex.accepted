@@ -1,0 +1,7 @@
+---
+version: 1.2.0
+title: Should report unknown package on hex
+---
+InterfaceError: Package impossibly_impossible_name_to_guess does not exist.
+      If you are documenting a module inside a package with a different name,
+      try specifying the package name explicitly : `package:module/wibble.item`
