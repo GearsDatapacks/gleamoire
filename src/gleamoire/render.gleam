@@ -218,11 +218,13 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
     case p {
       0 -> ""
       n ->
-        "("
-        <> list.range(0, n - 1)
-        |> list.map(get_variable_symbol)
-        |> string.join(", ")
-        <> ")"
+        list_or_empty(
+          "(",
+          list.range(0, n - 1)
+            |> list.map(get_variable_symbol),
+          ", ",
+          ")",
+        )
     }
   }
   let representation = case type_ {
@@ -230,9 +232,12 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
       "pub type "
       <> name
       <> t.parameters |> render_type_parameters
-      <> " {\n  "
-      <> t.constructors |> list.map(render_constructor) |> string.join("\n  ")
-      <> "\n}"
+      <> list_or_empty(
+        " {\n  ",
+        t.constructors |> list.map(render_constructor),
+        "\n  ",
+        "\n}",
+      )
     Alias(a) ->
       "type "
       <> name

@@ -261,6 +261,32 @@ pub fn type_alias_test() {
   |> birdie.snap("Should print type alias")
 }
 
+pub fn type_no_constructor_test() {
+  render.document_item(
+    "Type",
+    "module",
+    pi.Module(
+      ..empty_module(),
+      types: [
+          #(
+            "Type",
+            pi.TypeDefinition(
+              documentation: Some("This is a type with no constructors"),
+              deprecation: None,
+              parameters: 1,
+              constructors: [],
+            ),
+          ),
+        ]
+        |> dict.from_list,
+    ),
+    empty_package(),
+    args.Unspecified,
+  )
+  |> should.be_ok
+  |> birdie.snap("Should print type without constructors")
+}
+
 pub fn custom_type_test() {
   render.document_item(
     "MyResult",

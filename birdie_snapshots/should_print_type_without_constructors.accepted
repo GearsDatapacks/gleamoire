@@ -1,0 +1,9 @@
+---
+version: 1.2.0
+title: Should print type without constructors
+---
+Documentation for type `Type` in `module`:
+
+pub type Type(a)
+
+This is a type with no constructors
