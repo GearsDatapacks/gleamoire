@@ -1,12 +1,13 @@
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/string
 import gleamoire/error
 
 pub type Args {
   Help
   Version
   Document(
-    query: String,
+    query: ParsedQuery,
     print_mode: PrintMode,
     cache_path: Option(String),
     refresh_cache: Bool,
@@ -35,10 +36,10 @@ Flags:
 
 /// Parse a list of strings into structured arguments
 ///
-pub fn parse(args: List(String)) -> Result(Args, error.Error) {
+pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
   use parsed <- result.try(do_parse_args(
     args,
-    Parsed(
+    ParsedArgs(
       value_flag: False,
       type_flag: False,
       help_flag: False,
@@ -56,18 +57,20 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
       Error(error.InputError("Only one of -t and -v may be specified"))
   })
   case parsed {
-    Parsed(help_flag: True, ..) -> Ok(Help)
-    Parsed(version_flag: True, ..) -> Ok(Version)
-    Parsed(query: Some(query), cache_path:, refresh_cache:, ..) ->
-      Ok(Document(query:, print_mode:, cache_path:, refresh_cache:))
+    ParsedArgs(help_flag: True, ..) -> Ok(Help)
+    ParsedArgs(version_flag: True, ..) -> Ok(Version)
+    ParsedArgs(query: Some(query), cache_path:, refresh_cache:, ..) -> {
+      use parsed_query <- result.try(parse_query(query))
+      Ok(Document(query: parsed_query, print_mode:, cache_path:, refresh_cache:))
+    }
     // Special case for `gleamoire -v`, in case the user was trying to specify --version
-    Parsed(query: None, value_flag: True, ..) ->
+    ParsedArgs(query: None, value_flag: True, ..) ->
       Error(error.InputError(
         "The -v flag must be used in combination with a module to document. "
         <> "If you meant to print the current version, use --version instead. "
         <> "See gleamoire --help for more information.",
       ))
-    Parsed(query: None, ..) ->
+    ParsedArgs(query: None, ..) ->
       Error(error.InputError(
         "Please specify a module to document. See gleamoire --help for more information",
       ))
@@ -76,8 +79,8 @@ pub fn parse(args: List(String)) -> Result(Args, error.Error) {
 
 /// Represent current state of argument parsing
 ///
-type Parsed {
-  Parsed(
+type ParsedArgs {
+  ParsedArgs(
     value_flag: Bool,
     type_flag: Bool,
     version_flag: Bool,
@@ -92,15 +95,18 @@ type Parsed {
 ///
 fn do_parse_args(
   args: List(String),
-  parsed: Parsed,
-) -> Result(Parsed, error.Error) {
+  parsed: ParsedArgs,
+) -> Result(ParsedArgs, error.Error) {
   case args {
     [] -> Ok(parsed)
     ["--cache"] | ["-C"] -> Error(error.InputError("No cache path provided"))
     ["--cache", cache_path, ..args] | ["-C", cache_path, ..args] ->
       case parsed.cache_path {
         None ->
-          do_parse_args(args, Parsed(..parsed, cache_path: Some(cache_path)))
+          do_parse_args(
+            args,
+            ParsedArgs(..parsed, cache_path: Some(cache_path)),
+          )
         Some(_) ->
           Error(error.InputError(
             "Custom cache location should only be specified once",
@@ -111,36 +117,83 @@ fn do_parse_args(
         "--type" | "-t" ->
           case parsed.type_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
-            False -> Ok(Parsed(..parsed, type_flag: True))
+            False -> Ok(ParsedArgs(..parsed, type_flag: True))
           }
         "--value" | "-v" ->
           case parsed.value_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
-            False -> Ok(Parsed(..parsed, value_flag: True))
+            False -> Ok(ParsedArgs(..parsed, value_flag: True))
           }
         "--help" | "-h" ->
           case parsed.help_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
-            False -> Ok(Parsed(..parsed, help_flag: True))
+            False -> Ok(ParsedArgs(..parsed, help_flag: True))
           }
         "--version" ->
           case parsed.version_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
-            False -> Ok(Parsed(..parsed, version_flag: True))
+            False -> Ok(ParsedArgs(..parsed, version_flag: True))
           }
         "--refresh" | "-r" ->
           case parsed.help_flag {
             True -> Error(error.InputError("Flags can only be specified once"))
-            False -> Ok(Parsed(..parsed, refresh_cache: True))
+            False -> Ok(ParsedArgs(..parsed, refresh_cache: True))
           }
         _ ->
           case parsed.query {
             Some(_) ->
               Error(error.InputError("Please only specify one name to document"))
-            None -> Ok(Parsed(..parsed, query: Some(arg)))
+            None -> Ok(ParsedArgs(..parsed, query: Some(arg)))
           }
       }
       |> result.try(do_parse_args(args, _))
     }
   }
+}
+
+/// Holds parsed values from user query
+///
+pub type ParsedQuery {
+  ParsedQuery(
+    package: Option(String),
+    module_path: List(String),
+    item: Option(String),
+  )
+}
+
+/// Turns an arbitrary string into a parsed query
+/// The expected input looks like this : [package:]module/name[.item]
+/// Parts between brackets can be ommited
+///
+pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
+  use #(package, module_item) <- result.try(case string.split(query, on: ":") {
+    [module_item] -> Ok(#(None, module_item))
+    ["", _] ->
+      Error(error.InputError(
+        "No package name found. Try specifying one in your query, for example : `wibble:wobble/mod.item`",
+      ))
+    [package, module_item] -> Ok(#(Some(package), module_item))
+    _ -> Error(error.InputError("Invalid package item query."))
+  })
+  use #(module_path, item) <- result.try(case
+    string.split(module_item, on: ".")
+  {
+    [_, ""] -> Error(error.InputError("No item provided"))
+    [module_path] -> Ok(#(module_path, None))
+    [module_path, item] -> Ok(#(module_path, Some(item)))
+    _ -> Error(error.InputError("Invalid module item requested"))
+  })
+  // We can safely assert here because string.split will always
+  // return at least one string in the list
+  let assert [main_module, ..sub] = string.split(module_path, on: "/")
+
+  use _ <- result.try(case main_module {
+    "" ->
+      Error(error.InputError(
+        "I did not understand what module you are referring to (should respect [package:]main/module.item syntax)",
+      ))
+    _ -> Ok(Nil)
+  })
+
+  Ok(ParsedQuery(package, [main_module, ..sub], item))
 }
