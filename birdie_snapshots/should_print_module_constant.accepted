@@ -1,9 +1,9 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print module constant
 ---
 Documentation for value `constant` in `module`:
 
-pub const constant: Option(Int)
+pub const constant: option.Option(Int)
 
 This holds a constant value

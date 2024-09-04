@@ -407,6 +407,68 @@ pub fn item_conflict_resolution_test() {
   |> birdie.snap("Should print type with name")
 }
 
+pub fn qualify_type_test() {
+  render.document_item(
+    "Wibble",
+    "wibble/wobble",
+    pi.Module(
+      ..empty_module(),
+      types: [
+          #(
+            "Wibble",
+            pi.TypeDefinition(
+              documentation: None,
+              deprecation: None,
+              parameters: 0,
+              constructors: [
+                pi.TypeConstructor(
+                  documentation: None,
+                  name: "Wibble",
+                  parameters: [pi.Parameter(None, gleam_type("Int"))],
+                ),
+                pi.TypeConstructor(
+                  documentation: None,
+                  name: "Wobble",
+                  parameters: [
+                    pi.Parameter(
+                      None,
+                      pi.Named(
+                        name: "Dict",
+                        package: "gleam_stdlib",
+                        module: "gleam/dict",
+                        parameters: [gleam_type("String"), gleam_type("Int")],
+                      ),
+                    ),
+                  ],
+                ),
+                pi.TypeConstructor(
+                  documentation: None,
+                  name: "Wubble",
+                  parameters: [
+                    pi.Parameter(
+                      None,
+                      pi.Named(
+                        name: "Wibble",
+                        package: "package",
+                        module: "wibble/wobble",
+                        parameters: [],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ]
+        |> dict.from_list,
+    ),
+    empty_package(),
+    args.Type,
+  )
+  |> should.be_ok
+  |> birdie.snap("Should qualify type outside current module")
+}
+
 pub fn pull_known_package_test() {
   docs.get_remote_interface("argv")
   |> should.be_ok
