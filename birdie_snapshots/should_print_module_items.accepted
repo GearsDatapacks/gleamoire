@@ -1,8 +1,6 @@
 ---
 version: 1.2.0
 title: Should print module items
-file: ./test/gleamoire_test.gleam
-test_name: module_items_test
 ---
 Help on module `mod2`:
 

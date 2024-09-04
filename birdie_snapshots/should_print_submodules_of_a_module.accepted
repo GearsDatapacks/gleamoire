@@ -1,8 +1,6 @@
 ---
 version: 1.2.0
 title: Should print submodules of a module
-file: ./test/gleamoire_test.gleam
-test_name: module_submodule_test
 ---
 Help on module `mod`:
 

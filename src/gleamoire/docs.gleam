@@ -126,9 +126,7 @@ fn get_cached_interface(
       use _ <- result.try(
         simplifile.delete(interface_path)
         |> result.map_error(fn(error) {
-          error.UnexpectedError(
-            "Failed to delete cache file: " <> simplifile.describe_error(error),
-          )
+          error.FileError(file: interface_path, action: "delete", error:)
         }),
       )
       get_interface(package)
@@ -138,12 +136,7 @@ fn get_cached_interface(
       // Get cache
       simplifile.read(interface_path)
       |> result.map_error(fn(error) {
-        error.FileError(
-          "Failed to read "
-          <> interface_path
-          <> ": "
-          <> simplifile.describe_error(error),
-        )
+        error.FileError(file: interface_path, action: "read", error:)
       })
     }
     _, _ -> {
@@ -157,35 +150,37 @@ fn get_cached_interface(
 /// Decide to build interface from source or pull it from Hex
 ///
 fn get_interface(package: String) -> Result(String, error.Error) {
-  case simplifile.is_file("./gleam.toml") {
-    Ok(True) -> {
-      let assert Ok(config_file) = simplifile.read("./gleam.toml")
+  case simplifile.read("./gleam.toml") {
+    Ok(config_file) -> {
       use config <- result.try(
         tom.parse(config_file)
         |> result.replace_error(error.UnexpectedError(
           "gleam.toml is malformed. Please ensure that you have a valid gleam.toml in your project",
         )),
       )
-      use dep <- result.try(
-        tom.get_table(config, ["dependencies"])
-        |> result.replace_error(error.UnexpectedError(
-          "gleam.toml is missing the 'dependencies' key. Please ensure that you have a valid gleam.toml in your project.",
-        )),
-      )
-      use current_package <- result.try(
-        tom.get_string(config, ["name"])
-        |> result.replace_error(error.UnexpectedError(
-          "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
-        )),
-      )
+      // The `dependencies` key is optional, so if it is not present we pull from hex
+      case tom.get_table(config, ["dependencies"]) {
+        Ok(dependencies) -> {
+          use current_package <- result.try(
+            tom.get_string(config, ["name"])
+            |> result.replace_error(error.UnexpectedError(
+              "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
+            )),
+          )
 
-      case package == current_package, dict.has_key(dep, package) {
-        True, _ -> build_package_interface(".")
-        False, True -> build_package_interface("./build/packages/" <> package)
-        _, _ -> get_remote_interface(package)
+          case package == current_package, dict.has_key(dependencies, package) {
+            True, _ -> build_package_interface(".")
+            False, True ->
+              build_package_interface("./build/packages/" <> package)
+            _, _ -> get_remote_interface(package)
+          }
+        }
+        Error(_) -> {
+          get_remote_interface(package)
+        }
       }
     }
-    Ok(False) | Error(_) -> get_remote_interface(package)
+    Error(_) -> get_remote_interface(package)
   }
 }
 
@@ -221,23 +216,13 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
   let interface =
     simplifile.read(interface_path)
     |> result.map_error(fn(error) {
-      error.FileError(
-        "Failed to read "
-        <> interface_path
-        <> ": "
-        <> simplifile.describe_error(error),
-      )
+      error.FileError(file: interface_path, action: "read", error:)
     })
 
   let _ =
     simplifile.delete(interface_path)
     |> result.map_error(fn(error) {
-      error.FileError(
-        "Failed to cleanup built "
-        <> interface_path
-        <> ": "
-        <> simplifile.describe_error(error),
-      )
+      error.FileError(file: interface_path, action: "cleanup built", error:)
     })
 
   spinner.finish(s)
@@ -275,14 +260,16 @@ pub fn get_remote_interface(package: String) -> Result(String, error.Error) {
   spinner.finish(s)
 
   // Make sure we don't cache data on 404 or other failed codes
-  use _ <- result.try(case resp.status {
-    200 -> Ok(Nil)
+  case resp.status {
+    200 -> Ok(resp.body)
     _ -> Error(error.InterfaceError("Package " <> package <> " does not exist.
-      If you are documenting a module inside a package with a different name,
-      try specifying the package name explicitly : `package:module/wibble.item`"))
-  })
 
-  Ok(resp.body)
+If you are documenting a module inside a package with a different name,
+try specifying the package name explicitly: `package:module/wibble.item`
+
+If the package does exist, but was published before Gleam v1.0.0, it will not
+contain a package-interface.json file and cannot be documented."))
+  }
 }
 
 /// Write string contents to file at provided location
@@ -296,35 +283,19 @@ fn write_file(
   use _ <- result.try(
     simplifile.create_directory_all(path)
     |> result.map_error(fn(error) {
-      error.FileError(
-        "Failed to create directory "
-        <> path
-        <> ": "
-        <> simplifile.describe_error(error),
-      )
+      error.FileError(file: path, action: "create directory", error:)
     }),
   )
   use _ <- result.try(
     simplifile.create_file(file_path)
     |> result.map_error(fn(error) {
-      error.FileError(
-        "Failed to create file "
-        <> file_path
-        <> ": "
-        <> simplifile.describe_error(error),
-      )
+      error.FileError(file: file_path, action: "create", error:)
     }),
   )
-  use _ <- result.map(
-    simplifile.write(file_path, content)
-    |> result.map_error(fn(error) {
-      error.FileError(
-        "Failed to write to file "
-        <> file_path
-        <> ": "
-        <> simplifile.describe_error(error),
-      )
-    }),
-  )
-  content
+
+  simplifile.write(file_path, content)
+  |> result.map_error(fn(error) {
+    error.FileError(action: "write to", file: file_path, error:)
+  })
+  |> result.replace(content)
 }

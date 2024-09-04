@@ -2,4 +2,4 @@
 version: 1.2.0
 title: Should report wrong query empty package
 ---
-InputError: No package name found. Try specifying one in your query, for example : `wibble:wobble/mod.item`
+InputError: No package name found. Try specifying one in your query, for example: `wibble:wobble/mod.item`

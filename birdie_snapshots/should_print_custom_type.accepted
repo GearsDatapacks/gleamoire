@@ -11,5 +11,5 @@ pub type MyResult(a, b) {
 
 Custom implementation of Result type
 
-/!\ This item has been deprecated :
+/!\ This item has been deprecated:
 Just use Result
