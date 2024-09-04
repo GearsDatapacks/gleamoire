@@ -1,0 +1,3 @@
+#!/bin/sh
+gleam format --check
+gleam test
