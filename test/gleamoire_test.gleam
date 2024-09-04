@@ -2,7 +2,6 @@ import birdie
 import gleam/dict
 import gleam/option.{None, Some}
 import gleam/package_interface as pi
-import gleam/string
 import gleamoire/args
 import gleamoire/docs
 import gleamoire/error
@@ -424,8 +423,16 @@ pub fn pull_unknown_package_test() {
 pub fn args_test() {
   args.parse_args(["-t", "lustre.Error", "-C", "~/.cache", "-r"])
   |> should.be_ok
-  |> string.inspect
-  |> birdie.snap("Should parse all arguments")
+  |> should.equal(args.Document(
+    query: args.ParsedQuery(
+      package: None,
+      module_path: ["lustre"],
+      item: Some("Error"),
+    ),
+    print_mode: args.Type,
+    cache_path: Some("~/.cache"),
+    refresh_cache: True,
+  ))
 }
 
 pub fn help_args_test() {

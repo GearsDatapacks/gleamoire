@@ -1,8 +1,6 @@
 ---
 version: 1.2.0
 title: Should print module documentation
-file: ./test/gleamoire_test.gleam
-test_name: module_documentation_test
 ---
 Help on module `mod`:
 

@@ -1,7 +1,7 @@
 name = "gleamoire"
 version = "1.0.0"
 
-description = "A handy grimoire for gleam ! Get documentation for your fave packages directly in the terminal."
+description = "A handy grimoire for gleam! Get documentation for your fave packages directly in the terminal."
 licences = ["Apache-2.0"]
 repository = { type = "github", user = "GearsDatapacks", repo = "gleamoire" }
 

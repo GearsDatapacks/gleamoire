@@ -8,5 +8,5 @@ pub const constant: Nil
 
 This holds a constant value
 
-/!\ This item has been deprecated :
+/!\ This item has been deprecated:
 You don't need a constant for Nil, silly

@@ -15,7 +15,7 @@ pub fn main() {
 
   case result {
     Ok(docs) -> docs |> string.trim_right |> io.println
-    Error(error) -> io.println(error.to_string(error))
+    Error(error) -> error |> error.to_string |> io.println_error
   }
 }
 
@@ -31,14 +31,8 @@ fn gleamoire(args: args.Args) -> Result(String, error.Error) {
         cache_path,
         refresh_cache,
       ))
-      let assert ParsedQuery(_, [main_module, ..sub], item) = query
-      use docs <- result.try(get_docs(
-        interface,
-        [main_module, ..sub],
-        item,
-        print_mode,
-      ))
-      Ok(docs)
+      let ParsedQuery(_, module_path, item) = query
+      get_docs(interface, module_path, item, print_mode)
     }
   }
 }

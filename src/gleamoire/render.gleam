@@ -147,7 +147,7 @@ fn render_item(item: SimpleItem, module_name: String) -> String {
   <> case item.deprecation {
     None | Some("") -> ""
     Some(deprecation) ->
-      "\n\n/!\\ This item has been deprecated :\n" <> deprecation
+      "\n\n/!\\ This item has been deprecated:\n" <> deprecation
   }
 }
 
@@ -236,6 +236,16 @@ fn simplify_module_interface(
   SimpleModule(types:, values:, submodules:)
 }
 
+/// Produces a range of values from start (inclusive) to end (exclusive).
+/// Does not support end values less than the start value.
+/// 
+fn exclusive_range(start: Int, end: Int) -> List(Int) {
+  case start >= end {
+    True -> []
+    False -> list.range(start, end - 1)
+  }
+}
+
 /// Make a type simpler for our documenting purposes
 /// Here we generate the representation for a type
 ///
@@ -244,18 +254,14 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
     Type(t) -> t.documentation
     Alias(a) -> a.documentation
   }
-  let render_type_parameters = fn(p) {
-    case p {
-      0 -> ""
-      n ->
-        list_or_empty(
-          "(",
-          list.range(0, n - 1)
-            |> list.map(get_variable_symbol),
-          ", ",
-          ")",
-        )
-    }
+  let render_type_parameters = fn(n) {
+    list_or_empty(
+      "(",
+      exclusive_range(0, n)
+        |> list.map(get_variable_symbol),
+      ", ",
+      ")",
+    )
   }
   let representation = case type_ {
     Type(t) ->
@@ -276,8 +282,9 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
       <> render_type(a.alias)
   }
   let deprecation = case type_ {
-    Type(t) -> option.map(t.deprecation, fn(d: pi.Deprecation) { d.message })
-    Alias(a) -> option.map(a.deprecation, fn(d: pi.Deprecation) { d.message })
+    Type(pi.TypeDefinition(deprecation: Some(d), ..)) -> Some(d.message)
+    Alias(pi.TypeAlias(deprecation: Some(d), ..)) -> Some(d.message)
+    _ -> None
   }
   SimpleItem(name:, kind: "type", documentation:, deprecation:, representation:)
 }
@@ -369,7 +376,7 @@ fn render_type(type_: pi.Type) -> String {
   }
 }
 
-/// Get type variable representation from it's ID
+/// Get type variable representation from its ID
 /// Based on the anchor definied in the module so that it can be customized
 ///
 fn get_variable_symbol(id: Int) -> String {

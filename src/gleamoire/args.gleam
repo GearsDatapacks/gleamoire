@@ -20,7 +20,7 @@ pub type PrintMode {
   Value
 }
 
-pub const help_text = "A handy grimoire for gleam packages !
+pub const help_text = "A handy grimoire for gleam packages!
 Documents a gleam module, type or value, in the command line!
 
 Usage:
@@ -162,7 +162,7 @@ pub type ParsedQuery {
 }
 
 /// Turns an arbitrary string into a parsed query
-/// The expected input looks like this : [package:]module/name[.item]
+/// The expected input looks like this: [package:]module/name[.item]
 /// Parts between brackets can be ommited
 ///
 pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
@@ -170,7 +170,7 @@ pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
     [module_item] -> Ok(#(None, module_item))
     ["", _] ->
       Error(error.InputError(
-        "No package name found. Try specifying one in your query, for example : `wibble:wobble/mod.item`",
+        "No package name found. Try specifying one in your query, for example: `wibble:wobble/mod.item`",
       ))
     [package, module_item] -> Ok(#(Some(package), module_item))
     _ -> Error(error.InputError("Invalid package item query."))
@@ -185,15 +185,12 @@ pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
   })
   // We can safely assert here because string.split will always
   // return at least one string in the list
-  let assert [main_module, ..sub] = string.split(module_path, on: "/")
 
-  use _ <- result.try(case main_module {
-    "" ->
+  case string.split(module_path, on: "/") {
+    ["", ..] ->
       Error(error.InputError(
         "I did not understand what module you are referring to (should respect [package:]main/module.item syntax)",
       ))
-    _ -> Ok(Nil)
-  })
-
-  Ok(ParsedQuery(package, [main_module, ..sub], item))
+    path -> Ok(ParsedQuery(package, path, item))
+  }
 }
