@@ -9,6 +9,7 @@ import gleam/result
 import gleam/string
 import gleamoire/args
 import gleamoire/error
+import gleamoire/prelude
 import gleamoire/render.{document_item, document_module}
 import gleamyshell
 import glitzer/spinner
@@ -26,19 +27,11 @@ const hexdocs_url = "https://hexdocs.pm/"
 /// Main entrypoint for docs retrival
 ///
 pub fn get_docs(
-  json: String,
+  interface: pi.Package,
   module_path: List(String),
   item: Option(String),
   print_mode: args.PrintMode,
 ) -> Result(String, error.Error) {
-  // Get interface string
-  use interface <- result.try(
-    json.decode(json, using: pi.decoder)
-    |> result.replace_error(error.UnexpectedError(
-      "Failed to decode package-interface.json. Something went wrong during the build process.",
-    )),
-  )
-
   let joined_path = string.join(module_path, "/")
   use module_interface <- result.try(
     dict.get(interface.modules, joined_path)
@@ -68,20 +61,32 @@ pub fn package_interface(
   query: args.ParsedQuery,
   cache_path: Option(String),
   refresh_cache: Bool,
-) -> Result(String, error.Error) {
+) -> Result(pi.Package, error.Error) {
   let assert args.ParsedQuery(package, [main_module, ..sub], _item) = query
 
-  // Retrieve package interface
-  let sub_is_stdlib = is_stdlib(sub)
-  case package, main_module {
-    Some(package), _ -> package
-    None, "gleam" if sub_is_stdlib == True -> "gleam_stdlib"
-    None, "gleam" -> "gleam_" <> result.unwrap(list.first(sub), "")
-    None, "gleam_community" ->
-      "gleam_community_" <> result.unwrap(list.first(sub), "")
-    None, module -> module
+  case package, main_module, sub {
+    // Special case for gleam prelude
+    None, "gleam", [] -> Ok(prelude.prelude_interface())
+    _, _, _ -> {
+      // Retrieve package interface
+      let sub_is_stdlib = is_stdlib(sub)
+      case package, main_module {
+        Some(package), _ -> package
+        None, "gleam" if sub_is_stdlib == True -> "gleam_stdlib"
+        None, "gleam" -> "gleam_" <> result.unwrap(list.first(sub), "")
+        None, "gleam_community" ->
+          "gleam_community_" <> result.unwrap(list.first(sub), "")
+        None, module -> module
+      }
+      |> get_cached_interface(cache_path, refresh_cache)
+      |> result.try(fn(json) {
+        json.decode(json, using: pi.decoder)
+        |> result.replace_error(error.UnexpectedError(
+          "Failed to decode package-interface.json. Something went wrong during the build process.",
+        ))
+      })
+    }
   }
-  |> get_cached_interface(cache_path, refresh_cache)
 }
 
 /// Returns whether p is part of the standard library

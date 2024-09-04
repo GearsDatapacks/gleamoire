@@ -1,0 +1,19 @@
+---
+version: 1.2.1
+title: Should document a gleam prelude item
+---
+Documentation for type `Result` in `gleam`:
+
+pub type Result(a, b) {
+  Ok(a)
+  Error(b)
+}
+
+The result of a fallible operation. A generic type, with two parameters:
+The value in case of a success, and the value representing any error encountered.
+
+Commonly a Gleam program or library will define a custom type with a variant for each
+possible problem that can arise, along with any error information that would be useful to the programmer.
+
+Note: The prelude has no official documentation, so all prelude documentation
+is written by the creators of Gleamoire, or taken from the Gleam Language Tour.
