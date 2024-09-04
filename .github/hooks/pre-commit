@@ -1,3 +1,4 @@
 #!/bin/sh
 gleam format --check
+gleam check
 gleam test
