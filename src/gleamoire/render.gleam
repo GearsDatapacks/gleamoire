@@ -200,7 +200,9 @@ fn simplify_module_interface(
       interface.type_aliases
         |> dict.map_values(fn(_, alias) { Alias(alias) }),
     )
-    |> dict.map_values(simplify_type)
+    |> dict.map_values(fn(name, type_) {
+      simplify_type(name, type_, module_name)
+    })
 
   let values =
     interface.constants
@@ -219,14 +221,20 @@ fn simplify_module_interface(
           |> list.map(fn(cons) {
             #(
               cons.name,
-              Constructor(cons, simplify_type(type_name, Type(type_))),
+              Constructor(
+                cons,
+                simplify_type(type_name, Type(type_), module_name),
+              ),
             )
           })
           |> dict.from_list(),
       )
     })
   let values =
-    dict.merge(values, constructors) |> dict.map_values(simplify_value)
+    dict.merge(values, constructors)
+    |> dict.map_values(fn(name, value) {
+      simplify_value(name, value, module_name)
+    })
 
   let submodules =
     package_interface.modules
@@ -249,7 +257,11 @@ fn exclusive_range(start: Int, end: Int) -> List(Int) {
 /// Make a type simpler for our documenting purposes
 /// Here we generate the representation for a type
 ///
-fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
+fn simplify_type(
+  name: String,
+  type_: TypeInterface,
+  current_module: String,
+) -> SimpleItem {
   let documentation = case type_ {
     Type(t) -> t.documentation
     Alias(a) -> a.documentation
@@ -270,7 +282,7 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
       <> t.parameters |> render_type_parameters
       <> list_or_empty(
         " {\n  ",
-        t.constructors |> list.map(render_constructor),
+        t.constructors |> list.map(render_constructor(_, current_module)),
         "\n  ",
         "\n}",
       )
@@ -279,7 +291,7 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
       <> name
       <> a.parameters |> render_type_parameters
       <> " = "
-      <> render_type(a.alias)
+      <> render_type(a.alias, current_module)
   }
   let deprecation = case type_ {
     Type(pi.TypeDefinition(deprecation: Some(d), ..)) -> Some(d.message)
@@ -292,17 +304,23 @@ fn simplify_type(name: String, type_: TypeInterface) -> SimpleItem {
 /// Make a value simpler for our documenting purposes
 /// Here we generate the representation for a type
 ///
-fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
+fn simplify_value(
+  name: String,
+  value: ValueInterface,
+  current_module: String,
+) -> SimpleItem {
   let documentation = case value {
     Function(f) -> f.documentation
     Constant(c) -> c.documentation
     Constructor(c, _) -> c.documentation
   }
   let representation = case value {
-    Function(f) -> render_function(name, f.parameters, Some(f.return))
-    Constant(c) -> "pub const " <> name <> ": " <> render_type(c.type_)
+    Function(f) ->
+      render_function(name, f.parameters, Some(f.return), current_module)
+    Constant(c) ->
+      "pub const " <> name <> ": " <> render_type(c.type_, current_module)
     Constructor(c, parent_type) ->
-      render_constructor(c)
+      render_constructor(c, current_module)
       <> "\n\nThis constructor occurs in the following type:\n"
       <> parent_type.representation
   }
@@ -324,17 +342,22 @@ fn simplify_value(name: String, value: ValueInterface) -> SimpleItem {
 
 /// Actually render constructor representation
 ///
-fn render_constructor(c: pi.TypeConstructor) -> String {
+fn render_constructor(c: pi.TypeConstructor, current_module: String) -> String {
   let pi.TypeConstructor(_, name, parameters) = c
   name
-  <> list_or_empty("(", parameters |> list.map(render_parameter), ", ", ")")
+  <> list_or_empty(
+    "(",
+    parameters |> list.map(render_parameter(_, current_module)),
+    ", ",
+    ")",
+  )
 }
 
 /// Actually render parameter representation
 ///
-fn render_parameter(p: pi.Parameter) -> String {
+fn render_parameter(p: pi.Parameter, current_module: String) -> String {
   p.label |> option.map(fn(l) { l <> ": " }) |> option.unwrap("")
-  <> render_type(p.type_)
+  <> render_type(p.type_, current_module)
 }
 
 /// Actually render function representation
@@ -343,36 +366,67 @@ fn render_function(
   name: String,
   parameters: List(pi.Parameter),
   return: Option(pi.Type),
+  current_module: String,
 ) -> String {
   let rendered_params = case parameters {
     [] -> "()"
-    [param] -> "(" <> render_parameter(param) <> ")"
+    [param] -> "(" <> render_parameter(param, current_module) <> ")"
     params ->
       "(\n  "
-      <> params |> list.map(render_parameter) |> string.join(", \n  ")
+      <> params
+      |> list.map(render_parameter(_, current_module))
+      |> string.join(", \n  ")
       <> "\n)"
   }
   "pub fn "
   <> name
   <> rendered_params
   <> " -> "
-  <> return |> option.map(render_type) |> option.unwrap("Nil")
+  <> return
+  |> option.map(render_type(_, current_module))
+  |> option.unwrap("Nil")
 }
 
 /// Actually render a type (as in gleam_package_interface.Type) representation
 ///
-fn render_type(type_: pi.Type) -> String {
+fn render_type(type_: pi.Type, current_module: String) -> String {
   case type_ {
     pi.Tuple(elements) ->
-      "#(" <> elements |> list.map(render_type) |> string.join(", ") <> ")"
+      "#("
+      <> elements
+      |> list.map(render_type(_, current_module))
+      |> string.join(", ")
+      <> ")"
     pi.Fn(parameters, return) ->
       "fn("
-      <> parameters |> list.map(render_type) |> string.join(", ")
+      <> parameters
+      |> list.map(render_type(_, current_module))
+      |> string.join(", ")
       <> ") -> "
-      <> render_type(return)
+      <> render_type(return, current_module)
     pi.Variable(id) -> get_variable_symbol(id)
-    pi.Named(name, _package, _module, parameters) ->
-      name <> list_or_empty("(", parameters |> list.map(render_type), ", ", ")")
+    pi.Named(name, _package, module, parameters) -> {
+      let qualifier = case module {
+        // Don't qualify prelude types
+        "gleam" -> ""
+        // Don't qualify types in the current module
+        _ if module == current_module -> ""
+        _ ->
+          string.split(module, "/")
+          |> list.last
+          |> result.unwrap(module)
+          <> "."
+      }
+
+      qualifier
+      <> name
+      <> list_or_empty(
+        "(",
+        parameters |> list.map(render_type(_, current_module)),
+        ", ",
+        ")",
+      )
+    }
   }
 }
 
