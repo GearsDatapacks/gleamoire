@@ -1,0 +1,32 @@
+---
+version: 1.2.1
+title: Should document the gleam prelude module
+---
+Help on module `gleam`:
+
+Available items
+> Types
+  - BitArray
+  - Bool
+  - Float
+  - Int
+  - List
+  - Nil
+  - Result
+  - String
+  - UtfCodepoint
+
+> Values
+  - Error
+  - False
+  - Nil
+  - Ok
+  - True
+
+Documentation for module `gleam`
+The gleam prelude. Types and values built into the compiler, representing
+features which interact directly with the language, and therefore cannot
+be defined in Gleam itself.
+
+Note: The prelude has no official documentation, so all prelude documentation
+is written by the creators of Gleamoire, or taken from the Gleam Language Tour.

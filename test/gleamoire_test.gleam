@@ -482,6 +482,30 @@ pub fn pull_unknown_package_test() {
   |> birdie.snap("Should report unknown package on hex")
 }
 
+pub fn document_prelude_test() {
+  let query =
+    args.ParsedQuery(package: None, module_path: ["gleam"], item: None)
+  let assert Ok(interface) = docs.package_interface(query, None, False)
+  let args.ParsedQuery(_, module_path, item) = query
+  docs.get_docs(interface, module_path, item, args.Unspecified)
+  |> should.be_ok
+  |> birdie.snap("Should document the gleam prelude module")
+}
+
+pub fn document_prelude_item_test() {
+  let query =
+    args.ParsedQuery(
+      package: None,
+      module_path: ["gleam"],
+      item: Some("Result"),
+    )
+  let assert Ok(interface) = docs.package_interface(query, None, False)
+  let args.ParsedQuery(_, module_path, item) = query
+  docs.get_docs(interface, module_path, item, args.Unspecified)
+  |> should.be_ok
+  |> birdie.snap("Should document a gleam prelude item")
+}
+
 pub fn args_test() {
   args.parse_args(["-t", "lustre.Error", "-C", "~/.cache", "-r"])
   |> should.be_ok
