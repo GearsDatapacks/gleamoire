@@ -1,9 +1,11 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print type with name
 ---
-Documentation for type `Wibble` in `module`:
+**Documentation for type `Wibble` in `module`**:
 
+```
 pub type Wibble {
   Wibble
 }
+```

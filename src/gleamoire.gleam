@@ -5,6 +5,7 @@ import gleam/string
 import gleamoire/args.{type ParsedQuery, ParsedQuery, parse_args}
 import gleamoire/docs.{get_docs, package_interface}
 import gleamoire/error
+import gleamoire/markdown
 
 const gleamoire_version = "1.0.0"
 
@@ -14,7 +15,7 @@ pub fn main() {
   let result = argv.load().arguments |> parse_args |> result.try(gleamoire)
 
   case result {
-    Ok(docs) -> docs |> string.trim_right |> io.println
+    Ok(docs) -> docs |> markdown.render |> string.trim_right |> io.println
     Error(error) -> error |> error.to_string |> io.println_error
   }
 }

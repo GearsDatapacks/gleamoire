@@ -1,9 +1,11 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print type alias
 ---
-Documentation for type `Alias` in `module`:
+**Documentation for type `Alias` in `module`**:
 
+```
 type Alias(a) = Result(a, Nil)
+```
 
 This is an alias for Result(a, Nil)

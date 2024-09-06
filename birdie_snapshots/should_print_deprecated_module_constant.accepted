@@ -1,10 +1,12 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print deprecated module constant
 ---
-Documentation for value `constant` in `module`:
+**Documentation for value `constant` in `module`**:
 
+```
 pub const constant: Nil
+```
 
 This holds a constant value
 

@@ -1,10 +1,10 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print module documentation
 ---
-Help on module `mod`:
+**Help on module `mod`**:
 
-Documentation for module `mod`
+**Documentation for module `mod`**
 # The mod module
 ## This is a subheading
 This module does things

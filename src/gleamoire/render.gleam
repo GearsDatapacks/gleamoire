@@ -23,27 +23,27 @@ pub fn document_module(
   let simple =
     simplify_module_interface(module_name, module_interface, package_interface)
   let available_modules =
-    "Help on module `"
+    "**Help on module `"
     <> module_name
-    <> "`:\n\n"
+    <> "`**:\n\n"
     <> list_or_empty(
       "Available submodules\n",
-      simple.submodules |> list.map(string.append("  - ", _)),
+      simple.submodules |> list.map(fn(mod) { "- `" <> mod <> "`" }),
       "\n",
       "\n\n",
     )
     <> list_or_empty(
-      "Available items\n",
+      "## Available items\n",
       [
         list_or_none(
-          "> Types\n",
-          list.map(dict.keys(simple.types), string.append("  - ", _)),
+          "### Types\n",
+          list.map(dict.keys(simple.types), fn(mod) { "- `" <> mod <> "`" }),
           "\n",
           "",
         ),
         list_or_none(
-          "> Values\n",
-          list.map(dict.keys(simple.values), string.append("  - ", _)),
+          "### Values\n",
+          list.map(dict.keys(simple.values), fn(mod) { "- `" <> mod <> "`" }),
           "\n",
           "",
         ),
@@ -56,7 +56,7 @@ pub fn document_module(
   // TODO: https://trello.com/c/qXFKt5Q7  Might open README.md if toplevel documentation
   let module_documentation =
     list_or_empty(
-      "Documentation for module `" <> module_name <> "`\n",
+      "**Documentation for module `" <> module_name <> "`**\n",
       module_interface.documentation |> list.map(string.trim_right),
       "\n",
       "",
@@ -132,17 +132,18 @@ pub fn document_item(
 /// This is supposed to show as much information as the module page in the html docs
 ///
 fn render_item(item: SimpleItem, module_name: String) -> String {
-  "Documentation for "
+  "**Documentation for "
   <> item.kind
   <> " `"
   <> item.name
   <> "` in `"
   <> module_name
-  <> "`:\n\n"
+  <> "`**:\n\n```\n"
   <> item.representation
+  <> "\n```"
   <> case item.documentation {
     None | Some("") -> ""
-    Some(docs) -> "\n\n" <> string.trim_right(docs)
+    Some(docs) -> "\n\n" <> docs |> string.trim_right
   }
   <> case item.deprecation {
     None | Some("") -> ""
