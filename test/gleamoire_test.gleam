@@ -507,7 +507,7 @@ pub fn document_prelude_item_test() {
 }
 
 pub fn args_test() {
-  args.parse_args(["-t", "lustre.Error", "-C", "~/.cache", "-r"])
+  args.parse_args(["-t", "lustre.Error", "-C", "~/.cache", "-r", "--raw"])
   |> should.be_ok
   |> should.equal(args.Document(
     query: args.ParsedQuery(
@@ -518,6 +518,7 @@ pub fn args_test() {
     print_mode: args.Type,
     cache_path: Some("~/.cache"),
     refresh_cache: True,
+    print_raw: True,
   ))
 }
 

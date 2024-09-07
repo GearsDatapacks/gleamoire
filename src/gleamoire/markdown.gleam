@@ -58,7 +58,7 @@ fn render_node(
       |> style_heading(level)
     ast.HorizontalBreak -> "\n"
     ast.HtmlBlock(html) -> html
-    ast.OrderedList(contents:, ..) ->
+    ast.OrderedList(contents:, start:, ..) ->
       contents
       |> list.index_map(fn(item, index) {
         let item = case item {
@@ -66,7 +66,7 @@ fn render_node(
             render_nodes(nodes, references, context)
         }
         // Indenting these by one space seems to make them easier to ready and look better
-        " " <> ansi.bold(int.to_string(index) <> ". ") <> item
+        " " <> ansi.bold(int.to_string(index + start) <> ". ") <> item
       })
       |> string.join("\n")
     ast.Paragraph(nodes) -> render_inline_nodes(nodes, references, context)
