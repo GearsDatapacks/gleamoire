@@ -2,9 +2,9 @@
 version: 1.2.1
 title: Should print module function
 ---
-**Documentation for value `func` in `module`**:
+# Documentation for value `func` in `module`:
 
-```
+```gleam
 pub fn func(
   Int, 
   float: Float

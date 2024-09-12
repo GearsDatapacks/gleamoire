@@ -23,11 +23,11 @@ pub fn document_module(
   let simple =
     simplify_module_interface(module_name, module_interface, package_interface)
   let available_modules =
-    "**Help on module `"
+    "# Help on module `"
     <> module_name
-    <> "`**:\n\n"
+    <> "`:\n\n"
     <> list_or_empty(
-      "Available submodules\n",
+      "## Available submodules\n",
       simple.submodules |> list.map(fn(mod) { "- `" <> mod <> "`" }),
       "\n",
       "\n\n",
@@ -56,7 +56,7 @@ pub fn document_module(
   // TODO: https://trello.com/c/qXFKt5Q7  Might open README.md if toplevel documentation
   let module_documentation =
     list_or_empty(
-      "**Documentation for module `" <> module_name <> "`**\n",
+      "# Documentation for module `" <> module_name <> "`:\n",
       module_interface.documentation |> list.map(string.trim_right),
       "\n",
       "",
@@ -132,13 +132,13 @@ pub fn document_item(
 /// This is supposed to show as much information as the module page in the html docs
 ///
 fn render_item(item: SimpleItem, module_name: String) -> String {
-  "**Documentation for "
+  "# Documentation for "
   <> item.kind
   <> " `"
   <> item.name
   <> "` in `"
   <> module_name
-  <> "`**:\n\n```\n"
+  <> "`:\n\n```gleam\n"
   <> item.representation
   <> "\n```"
   <> case item.documentation {

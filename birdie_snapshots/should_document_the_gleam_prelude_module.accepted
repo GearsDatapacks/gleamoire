@@ -2,7 +2,7 @@
 version: 1.2.1
 title: Should document the gleam prelude module
 ---
-**Help on module `gleam`**:
+# Help on module `gleam`:
 
 ## Available items
 ### Types
@@ -23,7 +23,7 @@ title: Should document the gleam prelude module
 - `Ok`
 - `True`
 
-**Documentation for module `gleam`**
+# Documentation for module `gleam`:
 The gleam prelude. Types and values built into the compiler, representing
 features which interact directly with the language, and therefore cannot
 be defined in Gleam itself.

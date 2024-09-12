@@ -2,14 +2,14 @@
 version: 1.2.1
 title: Should print submodules of a module
 ---
-**Help on module `mod`**:
+# Help on module `mod`:
 
-Available submodules
+## Available submodules
 - `mod/sub`
 - `mod/sub/other`
 - `mod/sub2`
 
-**Documentation for module `mod`**
+# Documentation for module `mod`:
 # The mod module
 ## This is a subheading
 This module does things

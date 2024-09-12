@@ -2,9 +2,9 @@
 version: 1.2.1
 title: Should print custom type
 ---
-**Documentation for type `MyResult` in `module`**:
+# Documentation for type `MyResult` in `module`:
 
-```
+```gleam
 pub type MyResult(a, b) {
   Ok(value: a, extra_info: b)
   Error(message: String)

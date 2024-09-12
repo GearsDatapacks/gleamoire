@@ -2,9 +2,9 @@
 version: 1.2.1
 title: Should print module constant
 ---
-**Documentation for value `constant` in `module`**:
+# Documentation for value `constant` in `module`:
 
-```
+```gleam
 pub const constant: option.Option(Int)
 ```
 

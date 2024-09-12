@@ -2,9 +2,9 @@
 version: 1.2.1
 title: Should document a gleam prelude item
 ---
-**Documentation for type `Result` in `gleam`**:
+# Documentation for type `Result` in `gleam`:
 
-```
+```gleam
 pub type Result(a, b) {
   Ok(a)
   Error(b)

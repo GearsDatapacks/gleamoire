@@ -2,9 +2,9 @@
 version: 1.2.1
 title: Should qualify type outside current module
 ---
-**Documentation for type `Wibble` in `wibble/wobble`**:
+# Documentation for type `Wibble` in `wibble/wobble`:
 
-```
+```gleam
 pub type Wibble {
   Wibble(Int)
   Wobble(dict.Dict(String, Int))
