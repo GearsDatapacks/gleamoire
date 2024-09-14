@@ -22,17 +22,6 @@ fn render_nodes(
   |> string.join("\n\n")
 }
 
-fn max_int(values: List(Int)) -> Int {
-  do_max_int(values, values |> list.first |> result.unwrap(0))
-}
-
-fn do_max_int(values: List(Int), max: Int) -> Int {
-  case values {
-    [] -> max
-    [x, ..rest] -> do_max_int(rest, int.max(max, x))
-  }
-}
-
 fn render_node(
   node: ast.BlockNode,
   references: Dict(String, ast.Reference),
@@ -45,22 +34,28 @@ fn render_node(
       render_nodes(nodes, references)
       |> string.split("\n")
       // Indent each line
-      |> list.map(fn(line) { "| " <> line })
+      |> list.map(fn(line) { " │ " <> line })
       |> string.join("\n")
       |> ansi.italic
       |> ansi.grey
     ast.CodeBlock(contents:, ..) -> {
       let lines =
         contents
-        |> string.trim
+        |> string.trim_right
         |> string.split("\n")
-      let longest_line_length =
-        lines
-        |> list.map(string.length)
-        |> max_int
+      let longest_line_length = case list.map(lines, string.length) {
+        [] -> 0
+        [first] -> first
+        [first, ..rest] -> list.fold(rest, first, int.max)
+      }
 
       lines
-      |> list.map(string.pad_right(_, to: longest_line_length, with: " "))
+      |> list.map(fn(line) {
+        // Padding with one extra space makes it more readable
+        line
+        |> string.pad_right(to: longest_line_length + 1, with: " ")
+        |> string.append(" ", _)
+      })
       |> string.join("\n")
       // Prefixing with a newline allows the background colour properly cover the
       // first line on some terminals, which it doesn't 
@@ -82,8 +77,10 @@ fn render_node(
           ast.ListItem(nodes) | ast.TightListItem(nodes) ->
             render_nodes(nodes, references)
         }
-        // Indenting these by one space seems to make them easier to ready and look better
-        " " <> ansi.bold(int.to_string(index + start) <> ". ") <> item
+        // Indenting these by one space seems to make them easier to read and look better
+        " "
+        <> { int.to_string(index + start) <> ". " } |> ansi.bold |> ansi.green
+        <> item
       })
       |> string.join("\n")
     ast.Paragraph(nodes) -> render_inline_nodes(nodes, references)
@@ -116,7 +113,11 @@ fn render_inline_node(
 ) -> String {
   case node {
     ast.CodeSpan(contents) ->
-      contents |> ansi.pink |> ansi.bg_hex(0x444444) |> ansi.bold
+      // Code blocks look better padded
+      { " " <> contents <> " " }
+      |> ansi.pink
+      |> ansi.bg_hex(0x444444)
+      |> ansi.bold
     ast.EmailAutolink(text) -> text
     ast.Emphasis(nodes, _) ->
       nodes
