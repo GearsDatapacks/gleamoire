@@ -1,4 +1,5 @@
 #!/bin/sh
+set -ex
 gleam format --check
 gleam check
 gleam test
