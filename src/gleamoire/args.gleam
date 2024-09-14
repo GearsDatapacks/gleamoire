@@ -11,6 +11,7 @@ pub type Args {
     print_mode: PrintMode,
     cache_path: Option(String),
     refresh_cache: Bool,
+    print_raw: Bool,
   )
 }
 
@@ -32,7 +33,8 @@ Flags:
 --type, -t     Print the type associated with the given name
 --value, -v    Print the value associated with the given name
 --cache, -C    Use a different cache location for package-interface.json
---refresh, -r  Refresh the cache for the documented module, in case it is outdataded"
+--refresh, -r  Refresh the cache for the documented module, in case it is outdataded
+--raw          Prints raw text of documentation, without rendering markdown"
 
 /// Parse a list of strings into structured arguments
 ///
@@ -45,6 +47,7 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
       help_flag: False,
       version_flag: False,
       refresh_cache: False,
+      print_raw: False,
       query: None,
       cache_path: None,
     ),
@@ -59,9 +62,15 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
   case parsed {
     ParsedArgs(help_flag: True, ..) -> Ok(Help)
     ParsedArgs(version_flag: True, ..) -> Ok(Version)
-    ParsedArgs(query: Some(query), cache_path:, refresh_cache:, ..) -> {
+    ParsedArgs(query: Some(query), cache_path:, refresh_cache:, print_raw:, ..) -> {
       use parsed_query <- result.try(parse_query(query))
-      Ok(Document(query: parsed_query, print_mode:, cache_path:, refresh_cache:))
+      Ok(Document(
+        query: parsed_query,
+        print_mode:,
+        cache_path:,
+        refresh_cache:,
+        print_raw:,
+      ))
     }
     // Special case for `gleamoire -v`, in case the user was trying to specify --version
     ParsedArgs(query: None, value_flag: True, ..) ->
@@ -86,6 +95,7 @@ type ParsedArgs {
     version_flag: Bool,
     help_flag: Bool,
     refresh_cache: Bool,
+    print_raw: Bool,
     cache_path: Option(String),
     query: Option(String),
   )
@@ -135,9 +145,14 @@ fn do_parse_args(
             False -> Ok(ParsedArgs(..parsed, version_flag: True))
           }
         "--refresh" | "-r" ->
-          case parsed.help_flag {
+          case parsed.refresh_cache {
             True -> Error(error.InputError("Flags can only be specified once"))
             False -> Ok(ParsedArgs(..parsed, refresh_cache: True))
+          }
+        "--raw" ->
+          case parsed.print_raw {
+            True -> Error(error.InputError("Flags can only be specified once"))
+            False -> Ok(ParsedArgs(..parsed, print_raw: True))
           }
         _ ->
           case parsed.query {

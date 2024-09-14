@@ -1,20 +1,20 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print module items
 ---
-Help on module `mod2`:
+# Help on module `mod2`:
 
-Available items
-> Types
-  - MyAlias
-  - MyType
+## Available items
+### Types
+- `MyAlias`
+- `MyType`
 
-> Values
-  - MyConstructor
-  - my_constant
-  - my_function
+### Values
+- `MyConstructor`
+- `my_constant`
+- `my_function`
 
-Documentation for module `mod2`
+# Documentation for module `mod2`:
 # The other module, mod2
 ## Another subheading
 This module does other things

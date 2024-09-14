@@ -1,9 +1,11 @@
 ---
-version: 1.2.0
+version: 1.2.1
 title: Should print type without constructors
 ---
-Documentation for type `Type` in `module`:
+# Documentation for type `Type` in `module`:
 
+```gleam
 pub type Type(a)
+```
 
 This is a type with no constructors
