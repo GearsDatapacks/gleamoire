@@ -1,0 +1,21 @@
+---
+version: 1.2.1
+title: Should render markdown lists
+file: ./test/markdown_test.gleam
+test_name: list_test
+---
+Shopping list:
+
+[1m • [22mBananas
+[1m • [22mMilk
+[1m • [22mPineapples
+[1m • [22mMango
+[1m • [22mBeer
+[1m • [22mCoffee
+
+Recipe:
+
+ [32m[1m1. [22m[39mMix two ingredients
+ [32m[1m2. [22m[39mPreheat the oven
+ [32m[1m3. [22m[39mPour the batter
+ [32m[1m4. [22m[39mEnjoy!

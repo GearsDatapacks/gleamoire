@@ -1,0 +1,9 @@
+---
+version: 1.2.1
+title: Should render markdown hyperlinks and images
+file: ./test/markdown_test.gleam
+test_name: hyperlink_test
+---
+[See my website]([4m[34mhttp://localhost:8080[39m[24m)!
+
+![And an image]([4m[34mhttps://gleam.run/images/lucy/lucy.svg[39m[24m)
