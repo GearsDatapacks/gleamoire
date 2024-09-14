@@ -1,0 +1,9 @@
+---
+version: 1.2.1
+title: Should render markdown quotes
+file: ./test/markdown_test.gleam
+test_name: block_quote_test
+---
+[90m[3m │ There are only two hard things in Computer Science:
+ │ Cache invalidation, and naming things
+ │ - Phil Karlton[23m[39m

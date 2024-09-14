@@ -1,0 +1,17 @@
+---
+version: 1.2.1
+title: Should render markdown headings
+file: ./test/markdown_test.gleam
+test_name: heading_test
+---
+[4m[1m[34mHeading 1[39m[22m[24m
+
+[4m[1m[33mHeading 2[39m[22m[24m
+
+[4m[36mHeading 3[39m[24m
+
+[1m[33mHeading 4[39m[22m
+
+[36mHeading 5[39m
+
+[33mHeading 6[39m

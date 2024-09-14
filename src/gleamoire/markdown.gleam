@@ -65,11 +65,9 @@ fn render_node(
     ast.Heading(level, nodes) ->
       render_inline_nodes(nodes, references)
       |> style_heading(level)
-    ast.HorizontalBreak -> "\n--------------------\n"
-    ast.HtmlBlock(html) -> {
-      let assert Ok(regex) = "</?\\w+?>" |> regex.from_string
-      regex |> regex.replace(html, "")
-    }
+    ast.HorizontalBreak ->
+      "────────────────────"
+    ast.HtmlBlock(html) -> strip_html(html)
     ast.OrderedList(contents:, start:, ..) ->
       contents
       |> list.index_map(fn(item, index) {
@@ -124,7 +122,7 @@ fn render_inline_node(
       |> render_inline_nodes(references)
       |> ansi.italic
     ast.HardLineBreak -> "\n"
-    ast.HtmlInline(html) -> html
+    ast.HtmlInline(html) -> strip_html(html)
     // We can't render images in the terminal so instead we just reconstruct the markdown
     ast.Image(alt:, href:, ..) ->
       "![" <> alt <> "](" <> href |> ansi.blue |> ansi.underline <> ")"
@@ -182,7 +180,7 @@ fn colour_alert(text: String, level: ast.AlertLevel) -> String {
   }
 }
 
-pub fn style_heading(text: String, level: Int) -> String {
+fn style_heading(text: String, level: Int) -> String {
   case level {
     1 -> text |> ansi.blue |> ansi.bold |> ansi.underline
     2 -> text |> ansi.yellow |> ansi.bold |> ansi.underline
@@ -192,4 +190,9 @@ pub fn style_heading(text: String, level: Int) -> String {
     6 -> text |> ansi.yellow
     _ -> text
   }
+}
+
+fn strip_html(html: String) -> String {
+  let assert Ok(regex) = "</?\\w+?>" |> regex.from_string
+  regex |> regex.replace(html, "")
 }

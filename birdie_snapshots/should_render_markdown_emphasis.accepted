@@ -1,0 +1,14 @@
+---
+version: 1.2.1
+title: Should render markdown emphasis
+file: ./test/markdown_test.gleam
+test_name: emphasis_test
+---
+[1mBold[22m
+[4mUnderline[24m
+[3mItalic[23m
+[3mOther italic[23m
+[9mStrikethrough[29m
+
+[1m[4mBold and underline[24m[22m
+[9m[3mStrikethrough and italic[23m[29m

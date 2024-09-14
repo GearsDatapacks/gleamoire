@@ -1,0 +1,13 @@
+---
+version: 1.2.1
+title: Should render markdown code
+file: ./test/markdown_test.gleam
+test_name: code_test
+---
+This is [1m[48;2;68;68;68m[38;5;219m inline code [39m[49m[22m.
+This is block code:
+
+[48;2;26;26;26m
+ pub fn main() { 
+   todo          
+ }               [49m
