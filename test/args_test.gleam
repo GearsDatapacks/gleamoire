@@ -2,10 +2,13 @@ import birdie
 import gleam/option.{None, Some}
 import gleamoire/args
 import gleamoire/error
+import gleamoire/version
 import gleeunit/should
 
 pub fn args_test() {
-  args.parse_args(["-t", "lustre.Error", "-C", "~/.cache", "-r", "--raw"])
+  args.parse_args([
+    "-t", "lustre.Error", "-C", "~/.cache", "-r", "--raw", "-V", "2.1",
+  ])
   |> should.be_ok
   |> should.equal(args.Document(
     query: args.ParsedQuery(
@@ -17,6 +20,7 @@ pub fn args_test() {
     cache_path: Some("~/.cache"),
     refresh_cache: True,
     print_raw: True,
+    package_version: Some(version.Version(major: 2, minor: 1, patch: 0)),
   ))
 }
 
@@ -29,7 +33,7 @@ pub fn help_args_test() {
 pub fn version_args_test() {
   args.parse_args(["--version"])
   |> should.be_ok
-  |> should.equal(args.Version)
+  |> should.equal(args.PrintVersion)
 }
 
 pub fn args_tv_error_test() {

@@ -25,11 +25,19 @@ pub fn main() {
 fn gleamoire(args: args.Args) -> Result(String, error.Error) {
   case args {
     args.Help -> Ok(args.help_text)
-    args.Version -> Ok("Gleamoire v" <> gleamoire_version)
-    args.Document(query:, print_mode:, cache_path:, refresh_cache:, print_raw:) -> {
+    args.PrintVersion -> Ok("Gleamoire v" <> gleamoire_version)
+    args.Document(
+      query:,
+      print_mode:,
+      cache_path:,
+      print_raw:,
+      refresh_cache:,
+      package_version:,
+    ) -> {
       use interface <- result.try(package_interface(
         query,
         cache_path,
+        package_version,
         refresh_cache,
       ))
       let ParsedQuery(_, module_path, item) = query

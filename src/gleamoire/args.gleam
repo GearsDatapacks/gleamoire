@@ -2,14 +2,16 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import gleamoire/error
+import gleamoire/version.{type Version}
 
 pub type Args {
   Help
-  Version
+  PrintVersion
   Document(
     query: ParsedQuery,
     print_mode: PrintMode,
     cache_path: Option(String),
+    package_version: Option(Version),
     refresh_cache: Bool,
     print_raw: Bool,
   )
@@ -33,8 +35,9 @@ Flags:
 --type, -t     Print the type associated with the given name
 --value, -v    Print the value associated with the given name
 --cache, -C    Use a different cache location for package-interface.json
---refresh, -r  Refresh the cache for the documented module, in case it is outdataded
---raw          Prints raw text of documentation, without rendering markdown"
+--refresh, -r  Refresh the cache for the documented module, in case it is outdated
+--raw          Prints raw text of documentation, without rendering markdown
+--package-version, -V  Document a specific version of a package"
 
 /// Parse a list of strings into structured arguments
 ///
@@ -49,6 +52,7 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
       refresh_cache: False,
       print_raw: False,
       query: None,
+      package_version: None,
       cache_path: None,
     ),
   ))
@@ -61,15 +65,27 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
   })
   case parsed {
     ParsedArgs(help_flag: True, ..) -> Ok(Help)
-    ParsedArgs(version_flag: True, ..) -> Ok(Version)
-    ParsedArgs(query: Some(query), cache_path:, refresh_cache:, print_raw:, ..) -> {
+    ParsedArgs(version_flag: True, ..) -> Ok(PrintVersion)
+    ParsedArgs(
+      query: Some(query),
+      cache_path:,
+      refresh_cache:,
+      package_version:,
+      print_raw:,
+      ..,
+    ) -> {
       use parsed_query <- result.try(parse_query(query))
+      use package_version <- result.try(case package_version {
+        None -> Ok(None)
+        Some(v) -> version.parse(v) |> result.map(Some)
+      })
       Ok(Document(
         query: parsed_query,
         print_mode:,
         cache_path:,
         refresh_cache:,
         print_raw:,
+        package_version:,
       ))
     }
     // Special case for `gleamoire -v`, in case the user was trying to specify --version
@@ -97,6 +113,7 @@ type ParsedArgs {
     refresh_cache: Bool,
     print_raw: Bool,
     cache_path: Option(String),
+    package_version: Option(String),
     query: Option(String),
   )
 }
@@ -120,6 +137,20 @@ fn do_parse_args(
         Some(_) ->
           Error(error.InputError(
             "Custom cache location should only be specified once",
+          ))
+      }
+    ["--package-version"] | ["-V"] ->
+      Error(error.InputError("No package version provided"))
+    ["--package-version", version, ..args] | ["-V", version, ..args] ->
+      case parsed.package_version {
+        None ->
+          do_parse_args(
+            args,
+            ParsedArgs(..parsed, package_version: Some(version)),
+          )
+        Some(_) ->
+          Error(error.InputError(
+            "Package version should only be specified once",
           ))
       }
     [arg, ..args] -> {
