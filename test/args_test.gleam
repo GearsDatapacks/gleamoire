@@ -1,8 +1,9 @@
 import birdie
+import gleam/list
 import gleam/option.{None, Some}
 import gleamoire/args
 import gleamoire/error
-import gleamoire/version
+import gleamoire/version.{Version}
 import gleeunit/should
 
 pub fn args_test() {
@@ -20,7 +21,7 @@ pub fn args_test() {
     cache_path: Some("~/.cache"),
     refresh_cache: True,
     print_raw: True,
-    package_version: Some(version.Version(major: 2, minor: 1, patch: 0)),
+    package_version: Some(Version(major: 2, minor: 1, patch: 0)),
   ))
 }
 
@@ -133,4 +134,61 @@ pub fn parse_query_empty_item_test() {
   |> should.be_error
   |> error.to_string
   |> birdie.snap("Should report empty item")
+}
+
+pub fn parse_full_version_test() {
+  version.parse("0.4.1")
+  |> should.be_ok
+  |> should.equal(Version(0, 4, 1))
+}
+
+pub fn parse_version_without_patch_test() {
+  version.parse("3.2")
+  |> should.be_ok
+  |> should.equal(Version(3, 2, 0))
+}
+
+pub fn parse_version_only_major_test() {
+  version.parse("1")
+  |> should.be_ok
+  |> should.equal(Version(1, 0, 0))
+}
+
+pub fn parse_version_too_many_components_test() {
+  version.parse("1.3.5.2")
+  |> should.be_error
+  |> should.equal(error.InputError("Invalid version number"))
+}
+
+pub fn parse_version_non_number_test() {
+  version.parse("3.2.five")
+  |> should.be_error
+  |> should.equal(error.InputError("Invalid version number"))
+}
+
+pub fn version_max_test() {
+  let v1 = Version(2, 1, 0)
+  let v2 = Version(2, 0, 3)
+
+  version.max(v1, v2)
+  |> should.equal(v1)
+}
+
+pub fn version_max_of_test() {
+  ["0.2.4", "2.3", "5.8.1", "3.4.2"]
+  |> list.filter_map(version.parse)
+  |> version.max_of
+  |> should.be_ok
+  |> should.equal(Version(5, 8, 1))
+}
+
+pub fn version_max_of_one_test() {
+  let version = Version(0, 1, 1)
+  version.max_of([version])
+  |> should.be_ok
+  |> should.equal(version)
+}
+
+pub fn version_max_of_none_test() {
+  version.max_of([]) |> should.be_error
 }

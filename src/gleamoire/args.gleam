@@ -30,13 +30,13 @@ Usage:
 gleamoire <query> [flags]
 
 Flags:
---help, -h     Print this help text
---version      Print the currently installed version of Gleamoire
---type, -t     Print the type associated with the given name
---value, -v    Print the value associated with the given name
---cache, -C    Use a different cache location for package-interface.json
---refresh, -r  Refresh the cache for the documented module, in case it is outdated
---raw          Prints raw text of documentation, without rendering markdown
+--help, -h             Print this help text
+--version              Print the currently installed version of Gleamoire
+--type, -t             Print the type associated with the given name
+--value, -v            Print the value associated with the given name
+--cache, -C            Use a different cache location for package-interface.json
+--refresh, -r          Refresh the cache for the documented module, in case it is outdated
+--raw                  Prints raw text of documentation, without rendering markdown
 --package-version, -V  Document a specific version of a package"
 
 /// Parse a list of strings into structured arguments

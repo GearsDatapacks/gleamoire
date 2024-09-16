@@ -63,9 +63,16 @@ pub fn max_of(versions: List(Version)) -> Result(Version, Nil) {
   }
 }
 
-fn max(v1: Version, v2: Version) -> Version {
-  let v1_greater =
-    v1.major > v2.major || v1.minor > v2.minor || v1.patch > v2.patch
+pub fn max(v1: Version, v2: Version) -> Version {
+  let v1_greater = case v1.major == v2.major {
+    True ->
+      case v1.minor == v2.minor {
+        True -> v1.patch > v2.patch
+        False -> v1.minor > v2.minor
+      }
+    False -> v1.major > v2.major
+  }
+
   case v1_greater {
     True -> v1
     False -> v2
