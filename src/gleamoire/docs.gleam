@@ -108,18 +108,11 @@ fn resolve_version(
     packages
     |> list.find_map(fn(toml) {
       case toml {
-        tom.Table(dict) ->
-          case dict.get(dict, "name") == Ok(tom.String(package)) {
-            True ->
-              dict.get(dict, "version")
-              |> result.try(fn(toml) {
-                case toml {
-                  tom.String(s) -> Ok(s)
-                  _ -> Error(Nil)
-                }
-              })
-              |> result.try(fn(v) { version.parse(v) |> result.nil_error })
-            False -> Error(Nil)
+        tom.InlineTable(dict) ->
+          case dict.get(dict, "name"), dict.get(dict, "version") {
+            Ok(tom.String(p)), Ok(tom.String(v)) if p == package ->
+              version.parse(v) |> result.nil_error
+            _, _ -> Error(Nil)
           }
         _ -> Error(Nil)
       }
@@ -170,6 +163,8 @@ pub fn package_interface(
   }
 }
 
+/// Parse a JSON string into a package_interface.Package
+///
 pub fn parse_interface(json: String) -> Result(pi.Package, error.Error) {
   json.decode(json, using: pi.decoder)
   |> result.replace_error(error.UnexpectedError(
@@ -320,20 +315,18 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
 
   let interface_path = path <> "/package-interface.json"
 
+  // TODO: In the future it would be good not to have to run `gleam clean`.
+  // Right now it is needed: https://github.com/gleam-lang/gleam/issues/2898
+  let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
+  let _ =
+    gleamyshell.execute("gleam", in: path, args: [
+      "export", "package-interface", "--out", "package-interface.json",
+    ])
+
   case path {
-    "." -> {
-      let _ =
-        gleamyshell.execute("gleam", in: path, args: [
-          "export", "package-interface", "--out", "package-interface.json",
-        ])
-      Nil
-    }
+    "." -> Nil
+    // Clean up build directory for dependencies
     _ -> {
-      let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
-      let _ =
-        gleamyshell.execute("gleam", in: path, args: [
-          "export", "package-interface", "--out", "package-interface.json",
-        ])
       let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
       Nil
     }

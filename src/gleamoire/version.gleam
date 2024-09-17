@@ -11,6 +11,8 @@ pub type Version {
 
 const invalid_version = error.InputError("Invalid version number")
 
+/// Parses a semver string into a Version.
+/// 
 pub fn parse(str: String) -> Result(Version, error.Error) {
   let parts = str |> string.split(".")
   case parts {
@@ -45,6 +47,8 @@ pub fn parse(str: String) -> Result(Version, error.Error) {
   }
 }
 
+/// Converts a Version into a semver string.
+/// 
 pub fn to_string(version: Version) -> String {
   int.to_string(version.major)
   <> "."
@@ -55,6 +59,7 @@ pub fn to_string(version: Version) -> String {
 
 /// Returns the highest version out of a list of version numbers. Returns Error
 /// if passed an empty list
+/// 
 pub fn max_of(versions: List(Version)) -> Result(Version, Nil) {
   case versions {
     [] -> Error(Nil)
@@ -63,6 +68,8 @@ pub fn max_of(versions: List(Version)) -> Result(Version, Nil) {
   }
 }
 
+/// Returns the higher of two versions.
+/// 
 pub fn max(v1: Version, v2: Version) -> Version {
   let v1_greater = case v1.major == v2.major {
     True ->
@@ -80,6 +87,7 @@ pub fn max(v1: Version, v2: Version) -> Version {
 }
 
 /// The result of version resolution
+/// 
 pub type ResolvedVersion {
   /// The version could not be resolved, so default to the latest
   Unresolved
