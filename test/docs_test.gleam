@@ -465,13 +465,13 @@ pub fn qualify_type_test() {
 }
 
 pub fn pull_known_package_test() {
-  docs.get_remote_interface("argv")
+  docs.get_remote_interface("argv", None)
   |> should.be_ok
   |> birdie.snap("Got argv documentation from Hex")
 }
 
 pub fn pull_unknown_package_test() {
-  docs.get_remote_interface("impossibly_impossible_name_to_guess")
+  docs.get_remote_interface("impossibly_impossible_name_to_guess", None)
   |> should.be_error
   |> error.to_string
   |> birdie.snap("Should report unknown package on hex")
@@ -480,7 +480,7 @@ pub fn pull_unknown_package_test() {
 pub fn document_prelude_test() {
   let query =
     args.ParsedQuery(package: None, module_path: ["gleam"], item: None)
-  let assert Ok(interface) = docs.package_interface(query, None, False)
+  let assert Ok(interface) = docs.package_interface(query, None, None, False)
   let args.ParsedQuery(_, module_path, item) = query
   docs.get_docs(interface, module_path, item, args.Unspecified)
   |> should.be_ok
@@ -494,7 +494,7 @@ pub fn document_prelude_item_test() {
       module_path: ["gleam"],
       item: Some("Result"),
     )
-  let assert Ok(interface) = docs.package_interface(query, None, False)
+  let assert Ok(interface) = docs.package_interface(query, None, None, False)
   let args.ParsedQuery(_, module_path, item) = query
   docs.get_docs(interface, module_path, item, args.Unspecified)
   |> should.be_ok
