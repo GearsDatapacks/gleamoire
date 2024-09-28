@@ -283,7 +283,13 @@ fn simplify_type(
       <> t.parameters |> render_type_parameters
       <> list_or_empty(
         " {\n  ",
-        t.constructors |> list.map(render_constructor(_, current_module)),
+        t.constructors
+          |> list.map(fn(constructor) {
+            constructor
+            |> render_constructor(current_module)
+            |> string.split("\n")
+            |> string.join("\n  ")
+          }),
         "\n  ",
         "\n}",
       )
@@ -346,12 +352,16 @@ fn simplify_value(
 fn render_constructor(c: pi.TypeConstructor, current_module: String) -> String {
   let pi.TypeConstructor(_, name, parameters) = c
   name
-  <> list_or_empty(
-    "(",
-    parameters |> list.map(render_parameter(_, current_module)),
-    ", ",
-    ")",
-  )
+  <> case parameters {
+    [] -> ""
+    [param] -> "(" <> render_parameter(param, current_module) <> ")"
+    params ->
+      "(\n  "
+      <> params
+      |> list.map(render_parameter(_, current_module))
+      |> string.join(",\n  ")
+      <> "\n)"
+  }
 }
 
 /// Actually render parameter representation
