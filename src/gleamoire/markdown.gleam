@@ -65,7 +65,8 @@ fn render_node(
     ast.Heading(level, nodes) ->
       render_inline_nodes(nodes, references)
       |> style_heading(level)
-    ast.HorizontalBreak -> "────────────────────"
+    ast.HorizontalBreak ->
+      "────────────────────"
     ast.HtmlBlock(html) -> strip_html(html)
     ast.OrderedList(contents:, start:, ..) ->
       contents
