@@ -41,7 +41,7 @@ fn render_node(
     ast.CodeBlock(contents:, ..) -> {
       let lines =
         contents
-        |> string.trim_right
+        |> string.trim_end
         |> string.split("\n")
       let longest_line_length = case list.map(lines, string.length) {
         [] -> 0
@@ -53,7 +53,7 @@ fn render_node(
       |> list.map(fn(line) {
         // Padding with one extra space makes it more readable
         line
-        |> string.pad_right(to: longest_line_length + 1, with: " ")
+        |> string.pad_end(to: longest_line_length + 1, with: " ")
         |> string.append(" ", _)
       })
       |> string.join("\n")

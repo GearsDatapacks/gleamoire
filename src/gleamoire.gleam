@@ -15,7 +15,7 @@ pub fn main() {
   let result = argv.load().arguments |> parse_args |> result.try(gleamoire)
 
   case result {
-    Ok(docs) -> docs |> string.trim_right |> io.println
+    Ok(docs) -> docs |> string.trim_end |> io.println
     Error(error) -> error |> error.to_string |> io.println_error
   }
 }

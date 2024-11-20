@@ -71,26 +71,26 @@ fn resolve_version(
   // Check if the package is the current package
   use <- result.lazy_unwrap({
     use config_file <- result.try(
-      simplifile.read("./gleam.toml") |> result.nil_error,
+      simplifile.read("./gleam.toml") |> result.replace_error(Nil),
     )
     use config <- result.try(
       tom.parse(config_file)
-      |> result.nil_error,
+      |> result.replace_error(Nil),
     )
 
     use current_package <- result.try(
       tom.get_string(config, ["name"])
-      |> result.nil_error,
+      |> result.replace_error(Nil),
     )
 
     case package == current_package {
       False -> Error(Nil)
       True -> {
         use version <- result.try(
-          tom.get_string(config, ["version"]) |> result.nil_error,
+          tom.get_string(config, ["version"]) |> result.replace_error(Nil),
         )
         version.parse(version)
-        |> result.nil_error
+        |> result.replace_error(Nil)
         |> result.map(version.Resolved)
       }
     }
@@ -99,11 +99,11 @@ fn resolve_version(
   // Check for dependencies
   use <- result.lazy_unwrap({
     use file <- result.try(
-      simplifile.read("./manifest.toml") |> result.nil_error,
+      simplifile.read("./manifest.toml") |> result.replace_error(Nil),
     )
-    use manifest <- result.try(tom.parse(file) |> result.nil_error)
+    use manifest <- result.try(tom.parse(file) |> result.replace_error(Nil))
     use packages <- result.try(
-      tom.get_array(manifest, ["packages"]) |> result.nil_error,
+      tom.get_array(manifest, ["packages"]) |> result.replace_error(Nil),
     )
     packages
     |> list.find_map(fn(toml) {
@@ -111,7 +111,7 @@ fn resolve_version(
         tom.InlineTable(dict) ->
           case dict.get(dict, "name"), dict.get(dict, "version") {
             Ok(tom.String(p)), Ok(tom.String(v)) if p == package ->
-              version.parse(v) |> result.nil_error
+              version.parse(v) |> result.replace_error(Nil)
             _, _ -> Error(Nil)
           }
         _ -> Error(Nil)

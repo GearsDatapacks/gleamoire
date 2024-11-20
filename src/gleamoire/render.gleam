@@ -57,7 +57,7 @@ pub fn document_module(
   let module_documentation =
     list_or_empty(
       "# Documentation for module `" <> module_name <> "`:\n",
-      module_interface.documentation |> list.map(string.trim_right),
+      module_interface.documentation |> list.map(string.trim_end),
       "\n",
       "",
     )
@@ -143,7 +143,7 @@ fn render_item(item: SimpleItem, module_name: String) -> String {
   <> "\n```"
   <> case item.documentation {
     None | Some("") -> ""
-    Some(docs) -> "\n\n" <> docs |> string.trim_right
+    Some(docs) -> "\n\n" <> docs |> string.trim_end
   }
   <> case item.deprecation {
     None | Some("") -> ""
