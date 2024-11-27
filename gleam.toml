@@ -10,7 +10,7 @@ repository = { type = "github", user = "GearsDatapacks", repo = "gleamoire" }
 
 [dependencies]
 glitzer = ">= 1.1.1 and < 2.0.0"
-gleam_stdlib = ">= 0.39.0 and < 1.0.0"
+gleam_stdlib = ">= 0.44.0 and < 1.0.0"
 gleam_package_interface = ">= 1.1.0 and < 2.0.0"
 simplifile = ">= 2.0.1 and < 3.0.0"
 gleescript = ">= 1.4.0 and < 2.0.0"
