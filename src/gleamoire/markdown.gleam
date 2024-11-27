@@ -3,7 +3,7 @@ import commonmark/ast
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
-import gleam/regex
+import gleam/regexp
 import gleam/result
 import gleam/string
 import gleam_community/ansi
@@ -192,6 +192,6 @@ fn style_heading(text: String, level: Int) -> String {
 }
 
 fn strip_html(html: String) -> String {
-  let assert Ok(regex) = "</?\\w+?>" |> regex.from_string
-  regex |> regex.replace(html, "")
+  let assert Ok(regex) = "</?\\w+?>" |> regexp.from_string
+  regex |> regexp.replace(html, "")
 }
