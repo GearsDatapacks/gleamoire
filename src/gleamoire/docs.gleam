@@ -176,9 +176,10 @@ pub fn parse_interface(json: String) -> Result(pi.Package, error.Error) {
 ///
 fn is_stdlib(p: List(String)) -> Bool {
   let stdlib = [
-    "bit_array", "bool", "bytes_builder", "dict", "dynamic", "float", "function",
-    "int", "io", "iterator", "list", "option", "order", "pair", "queue", "regex",
-    "result", "set", "string", "string_builder", "uri",
+    "bit_array", "bool", "bytes_builder", "bytes_tree", "dict", "dynamic",
+    "float", "function", "int", "io", "iterator", "list", "option", "order",
+    "pair", "queue", "regex", "result", "set", "string", "string_builder",
+    "string_tree", "uri",
   ]
   case p {
     [] -> False
