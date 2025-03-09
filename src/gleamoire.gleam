@@ -7,7 +7,7 @@ import gleamoire/docs.{get_docs, package_interface}
 import gleamoire/error
 import gleamoire/markdown
 
-const gleamoire_version = "1.0.0"
+const gleamoire_version = "1.1.0"
 
 /// Entrypoint to gleamoire
 ///

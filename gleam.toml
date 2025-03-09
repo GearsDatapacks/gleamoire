@@ -1,13 +1,10 @@
 name = "gleamoire"
-version = "1.0.0"
+version = "1.1.0"
 gleam = ">= 1.9.0"
 
 description = "A handy grimoire for gleam! Get documentation for your fave packages directly in the terminal."
 licences = ["Apache-2.0"]
 repository = { type = "github", user = "GearsDatapacks", repo = "gleamoire" }
-
-# For a full reference of all the available options, you can have a look at
-# https://gleam.run/writing-gleam/gleam-toml/.
 
 [dependencies]
 glitzer = ">= 1.1.1 and < 2.0.0"
