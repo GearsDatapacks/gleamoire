@@ -315,22 +315,10 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
 
   let interface_path = path <> "/package-interface.json"
 
-  // TODO: In the future it would be good not to have to run `gleam clean`.
-  // Right now it is needed: https://github.com/gleam-lang/gleam/issues/2898
-  let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
   let _ =
     gleamyshell.execute("gleam", in: path, args: [
       "export", "package-interface", "--out", "package-interface.json",
     ])
-
-  case path {
-    "." -> Nil
-    // Clean up build directory for dependencies
-    _ -> {
-      let _ = gleamyshell.execute("gleam", in: path, args: ["clean"])
-      Nil
-    }
-  }
 
   let interface =
     simplifile.read(interface_path)
