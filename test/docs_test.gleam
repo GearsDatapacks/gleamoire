@@ -36,12 +36,9 @@ const implementations = pi.Implementations(True, False, False)
 pub fn module_documentation_test() {
   render.document_module(
     "mod",
-    pi.Module(
-      ..empty_module(),
-      documentation: [
-        "# The mod module", "## This is a subheading", "This module does things",
-      ],
-    ),
+    pi.Module(..empty_module(), documentation: [
+      "# The mod module", "## This is a subheading", "This module does things",
+    ]),
     empty_package(),
   )
   |> birdie.snap("Should print module documentation")
@@ -119,12 +116,9 @@ pub fn module_items_test() {
 pub fn module_submodule_test() {
   render.document_module(
     "mod",
-    pi.Module(
-      ..empty_module(),
-      documentation: [
-        "# The mod module", "## This is a subheading", "This module does things",
-      ],
-    ),
+    pi.Module(..empty_module(), documentation: [
+      "# The mod module", "## This is a subheading", "This module does things",
+    ]),
     pi.Package(
       ..empty_package(),
       modules: [

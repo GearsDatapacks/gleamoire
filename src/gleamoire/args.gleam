@@ -221,14 +221,14 @@ pub fn parse_query(query: String) -> Result(ParsedQuery, error.Error) {
     [package, module_item] -> Ok(#(Some(package), module_item))
     _ -> Error(error.InputError("Invalid package item query."))
   })
-  use #(module_path, item) <- result.try(case
-    string.split(module_item, on: ".")
-  {
-    [_, ""] -> Error(error.InputError("No item provided"))
-    [module_path] -> Ok(#(module_path, None))
-    [module_path, item] -> Ok(#(module_path, Some(item)))
-    _ -> Error(error.InputError("Invalid module item requested"))
-  })
+  use #(module_path, item) <- result.try(
+    case string.split(module_item, on: ".") {
+      [_, ""] -> Error(error.InputError("No item provided"))
+      [module_path] -> Ok(#(module_path, None))
+      [module_path, item] -> Ok(#(module_path, Some(item)))
+      _ -> Error(error.InputError("Invalid module item requested"))
+    },
+  )
   // We can safely assert here because string.split will always
   // return at least one string in the list
 
