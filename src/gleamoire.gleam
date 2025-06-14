@@ -2,7 +2,7 @@ import argv
 import gleam/io
 import gleam/result
 import gleam/string
-import gleamoire/args.{type ParsedQuery, ParsedQuery, parse_args}
+import gleamoire/args.{ParsedQuery, parse_args}
 import gleamoire/docs.{get_docs, package_interface}
 import gleamoire/error
 import gleamoire/markdown

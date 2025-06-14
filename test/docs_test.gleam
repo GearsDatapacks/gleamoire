@@ -6,7 +6,6 @@ import gleamoire/args
 import gleamoire/docs
 import gleamoire/error
 import gleamoire/render
-import gleeunit/should
 
 fn empty_module() {
   pi.Module(
@@ -133,340 +132,342 @@ pub fn module_submodule_test() {
 }
 
 pub fn constant_item_test() {
-  render.document_item(
-    "constant",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      constants: [
-          #(
-            "constant",
-            pi.Constant(
-              documentation: Some("This holds a constant value"),
-              deprecation: None,
-              implementations:,
-              type_: pi.Named(
-                name: "Option",
-                package: "gleam_stdlib",
-                module: "gleam/option",
-                parameters: [gleam_type("Int")],
+  let assert Ok(value) =
+    render.document_item(
+      "constant",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        constants: [
+            #(
+              "constant",
+              pi.Constant(
+                documentation: Some("This holds a constant value"),
+                deprecation: None,
+                implementations:,
+                type_: pi.Named(
+                  name: "Option",
+                  package: "gleam_stdlib",
+                  module: "gleam/option",
+                  parameters: [gleam_type("Int")],
+                ),
               ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print module constant")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  birdie.snap(value, "Should print module constant")
 }
 
 pub fn function_item_test() {
-  render.document_item(
-    "func",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      functions: [
-          #(
-            "func",
-            pi.Function(
-              documentation: Some("Does stuff"),
-              deprecation: None,
-              implementations:,
-              parameters: [
-                pi.Parameter(label: None, type_: gleam_type("Int")),
-                pi.Parameter(label: Some("float"), type_: gleam_type("Float")),
-              ],
-              return: gleam_type("Bool"),
+  let assert Ok(value) =
+    render.document_item(
+      "func",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        functions: [
+            #(
+              "func",
+              pi.Function(
+                documentation: Some("Does stuff"),
+                deprecation: None,
+                implementations:,
+                parameters: [
+                  pi.Parameter(label: None, type_: gleam_type("Int")),
+                  pi.Parameter(label: Some("float"), type_: gleam_type("Float")),
+                ],
+                return: gleam_type("Bool"),
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print module function")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  birdie.snap(value, "Should print module function")
 }
 
 pub fn deprecated_item_test() {
-  render.document_item(
-    "constant",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      constants: [
-          #(
-            "constant",
-            pi.Constant(
-              documentation: Some("This holds a constant value"),
-              deprecation: Some(pi.Deprecation(
-                "You don't need a constant for Nil, silly",
-              )),
-              implementations:,
-              type_: gleam_type("Nil"),
+  let assert Ok(value) =
+    render.document_item(
+      "constant",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        constants: [
+            #(
+              "constant",
+              pi.Constant(
+                documentation: Some("This holds a constant value"),
+                deprecation: Some(pi.Deprecation(
+                  "You don't need a constant for Nil, silly",
+                )),
+                implementations:,
+                type_: gleam_type("Nil"),
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print deprecated module constant")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  birdie.snap(value, "Should print deprecated module constant")
 }
 
 pub fn type_alias_test() {
-  render.document_item(
-    "Alias",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      type_aliases: [
-          #(
-            "Alias",
-            pi.TypeAlias(
-              documentation: Some("This is an alias for Result(a, Nil)"),
-              deprecation: None,
-              parameters: 1,
-              alias: pi.Named("Result", "gleam", "gleam", [
-                pi.Variable(0),
-                gleam_type("Nil"),
-              ]),
+  let assert Ok(value) =
+    render.document_item(
+      "Alias",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        type_aliases: [
+            #(
+              "Alias",
+              pi.TypeAlias(
+                documentation: Some("This is an alias for Result(a, Nil)"),
+                deprecation: None,
+                parameters: 1,
+                alias: pi.Named("Result", "gleam", "gleam", [
+                  pi.Variable(0),
+                  gleam_type("Nil"),
+                ]),
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print type alias")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  birdie.snap(value, "Should print type alias")
 }
 
 pub fn type_no_constructor_test() {
-  render.document_item(
-    "Type",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      types: [
-          #(
-            "Type",
-            pi.TypeDefinition(
-              documentation: Some("This is a type with no constructors"),
-              deprecation: None,
-              parameters: 1,
-              constructors: [],
+  let assert Ok(value) =
+    render.document_item(
+      "Type",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        types: [
+            #(
+              "Type",
+              pi.TypeDefinition(
+                documentation: Some("This is a type with no constructors"),
+                deprecation: None,
+                parameters: 1,
+                constructors: [],
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print type without constructors")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  birdie.snap(value, "Should print type without constructors")
 }
 
 pub fn custom_type_test() {
-  render.document_item(
-    "MyResult",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      types: [
-          #(
-            "MyResult",
-            pi.TypeDefinition(
-              documentation: Some("Custom implementation of Result type"),
-              deprecation: Some(pi.Deprecation("Just use Result")),
-              parameters: 2,
-              constructors: [
-                pi.TypeConstructor(
-                  documentation: Some("The Ok value"),
-                  name: "Ok",
-                  parameters: [
-                    pi.Parameter(Some("value"), pi.Variable(0)),
-                    pi.Parameter(Some("extra_info"), pi.Variable(1)),
-                  ],
-                ),
-                pi.TypeConstructor(
-                  documentation: Some("The Error value"),
-                  name: "Error",
-                  parameters: [
-                    pi.Parameter(Some("message"), gleam_type("String")),
-                  ],
-                ),
-              ],
+  let assert Ok(value) =
+    render.document_item(
+      "MyResult",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        types: [
+            #(
+              "MyResult",
+              pi.TypeDefinition(
+                documentation: Some("Custom implementation of Result type"),
+                deprecation: Some(pi.Deprecation("Just use Result")),
+                parameters: 2,
+                constructors: [
+                  pi.TypeConstructor(
+                    documentation: Some("The Ok value"),
+                    name: "Ok",
+                    parameters: [
+                      pi.Parameter(Some("value"), pi.Variable(0)),
+                      pi.Parameter(Some("extra_info"), pi.Variable(1)),
+                    ],
+                  ),
+                  pi.TypeConstructor(
+                    documentation: Some("The Error value"),
+                    name: "Error",
+                    parameters: [
+                      pi.Parameter(Some("message"), gleam_type("String")),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print custom type")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  birdie.snap(value, "Should print custom type")
 }
 
 pub fn unknown_item_error_test() {
-  render.document_item(
-    "NonExistent",
-    "module",
-    empty_module(),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_error
+  let assert Error(value) =
+    render.document_item(
+      "NonExistent",
+      "module",
+      empty_module(),
+      empty_package(),
+      args.Unspecified,
+    )
+  value
   |> error.to_string
   |> birdie.snap("Should error because value doesn't exist")
 }
 
 pub fn item_conflict_error_test() {
-  render.document_item(
-    "Wibble",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      types: [
-          #(
-            "Wibble",
-            pi.TypeDefinition(
-              documentation: None,
-              deprecation: None,
-              parameters: 0,
-              constructors: [
-                pi.TypeConstructor(
-                  documentation: None,
-                  name: "Wibble",
-                  parameters: [],
-                ),
-              ],
+  let assert Error(value) =
+    render.document_item(
+      "Wibble",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        types: [
+            #(
+              "Wibble",
+              pi.TypeDefinition(
+                documentation: None,
+                deprecation: None,
+                parameters: 0,
+                constructors: [
+                  pi.TypeConstructor(
+                    documentation: None,
+                    name: "Wibble",
+                    parameters: [],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Unspecified,
-  )
-  |> should.be_error
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Unspecified,
+    )
+  value
   |> error.to_string
   |> birdie.snap("Should error because of name conflict")
 }
 
 pub fn item_conflict_resolution_test() {
-  render.document_item(
-    "Wibble",
-    "module",
-    pi.Module(
-      ..empty_module(),
-      types: [
-          #(
-            "Wibble",
-            pi.TypeDefinition(
-              documentation: None,
-              deprecation: None,
-              parameters: 0,
-              constructors: [
-                pi.TypeConstructor(
-                  documentation: None,
-                  name: "Wibble",
-                  parameters: [],
-                ),
-              ],
+  let assert Ok(value) =
+    render.document_item(
+      "Wibble",
+      "module",
+      pi.Module(
+        ..empty_module(),
+        types: [
+            #(
+              "Wibble",
+              pi.TypeDefinition(
+                documentation: None,
+                deprecation: None,
+                parameters: 0,
+                constructors: [
+                  pi.TypeConstructor(
+                    documentation: None,
+                    name: "Wibble",
+                    parameters: [],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Type,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should print type with name")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Type,
+    )
+  birdie.snap(value, "Should print type with name")
 }
 
 pub fn qualify_type_test() {
-  render.document_item(
-    "Wibble",
-    "wibble/wobble",
-    pi.Module(
-      ..empty_module(),
-      types: [
-          #(
-            "Wibble",
-            pi.TypeDefinition(
-              documentation: None,
-              deprecation: None,
-              parameters: 0,
-              constructors: [
-                pi.TypeConstructor(
-                  documentation: None,
-                  name: "Wibble",
-                  parameters: [pi.Parameter(None, gleam_type("Int"))],
-                ),
-                pi.TypeConstructor(
-                  documentation: None,
-                  name: "Wobble",
-                  parameters: [
-                    pi.Parameter(
-                      None,
-                      pi.Named(
-                        name: "Dict",
-                        package: "gleam_stdlib",
-                        module: "gleam/dict",
-                        parameters: [gleam_type("String"), gleam_type("Int")],
+  let assert Ok(value) =
+    render.document_item(
+      "Wibble",
+      "wibble/wobble",
+      pi.Module(
+        ..empty_module(),
+        types: [
+            #(
+              "Wibble",
+              pi.TypeDefinition(
+                documentation: None,
+                deprecation: None,
+                parameters: 0,
+                constructors: [
+                  pi.TypeConstructor(
+                    documentation: None,
+                    name: "Wibble",
+                    parameters: [pi.Parameter(None, gleam_type("Int"))],
+                  ),
+                  pi.TypeConstructor(
+                    documentation: None,
+                    name: "Wobble",
+                    parameters: [
+                      pi.Parameter(
+                        None,
+                        pi.Named(
+                          name: "Dict",
+                          package: "gleam_stdlib",
+                          module: "gleam/dict",
+                          parameters: [gleam_type("String"), gleam_type("Int")],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                pi.TypeConstructor(
-                  documentation: None,
-                  name: "Wubble",
-                  parameters: [
-                    pi.Parameter(
-                      None,
-                      pi.Named(
-                        name: "Wibble",
-                        package: "package",
-                        module: "wibble/wobble",
-                        parameters: [],
+                    ],
+                  ),
+                  pi.TypeConstructor(
+                    documentation: None,
+                    name: "Wubble",
+                    parameters: [
+                      pi.Parameter(
+                        None,
+                        pi.Named(
+                          name: "Wibble",
+                          package: "package",
+                          module: "wibble/wobble",
+                          parameters: [],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]
-        |> dict.from_list,
-    ),
-    empty_package(),
-    args.Type,
-  )
-  |> should.be_ok
-  |> birdie.snap("Should qualify type outside current module")
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+      args.Type,
+    )
+  birdie.snap(value, "Should qualify type outside current module")
 }
 
 pub fn pull_known_package_test() {
-  docs.get_remote_interface("argv", None)
-  |> should.be_ok
-  |> birdie.snap("Got argv documentation from Hex")
+  let assert Ok(value) = docs.get_remote_interface("argv", None)
+  birdie.snap(value, "Got argv documentation from Hex")
 }
 
 pub fn pull_unknown_package_test() {
-  docs.get_remote_interface("impossibly_impossible_name_to_guess", None)
-  |> should.be_error
+  let assert Error(value) =
+    docs.get_remote_interface("impossibly_impossible_name_to_guess", None)
+  value
   |> error.to_string
   |> birdie.snap("Should report unknown package on hex")
 }
@@ -476,9 +477,9 @@ pub fn document_prelude_test() {
     args.ParsedQuery(package: None, module_path: ["gleam"], item: None)
   let assert Ok(interface) = docs.package_interface(query, None, None, False)
   let args.ParsedQuery(_, module_path, item) = query
-  docs.get_docs(interface, module_path, item, args.Unspecified)
-  |> should.be_ok
-  |> birdie.snap("Should document the gleam prelude module")
+  let assert Ok(value) =
+    docs.get_docs(interface, module_path, item, args.Unspecified)
+  birdie.snap(value, "Should document the gleam prelude module")
 }
 
 pub fn document_prelude_item_test() {
@@ -490,7 +491,7 @@ pub fn document_prelude_item_test() {
     )
   let assert Ok(interface) = docs.package_interface(query, None, None, False)
   let args.ParsedQuery(_, module_path, item) = query
-  docs.get_docs(interface, module_path, item, args.Unspecified)
-  |> should.be_ok
-  |> birdie.snap("Should document a gleam prelude item")
+  let assert Ok(value) =
+    docs.get_docs(interface, module_path, item, args.Unspecified)
+  birdie.snap(value, "Should document a gleam prelude item")
 }
