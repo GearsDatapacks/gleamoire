@@ -6,6 +6,8 @@ description = "A handy grimoire for gleam! Get documentation for your fave packa
 licences = ["Apache-2.0"]
 repository = { type = "github", user = "GearsDatapacks", repo = "gleamoire" }
 
+internal_modules = ["gleamoire/*"]
+
 [dependencies]
 glitzer = ">= 1.1.1 and < 2.0.0"
 gleam_stdlib = ">= 0.44.0 and < 1.0.0"
