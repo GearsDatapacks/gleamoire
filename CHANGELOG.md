@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 2.0.0 - 2025-07-03
 
-- Added the `--silent` flag, which removes the printing of progress when featching
+- Added the `--silent` flag, which removes the printing of progress when fetching
   or building documentation.
 - Modules other than the main `gleamoire` module have been made internal.
 
