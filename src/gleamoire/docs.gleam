@@ -141,6 +141,7 @@ pub fn package_interface(
   cache_path: Option(String),
   version: Option(Version),
   refresh_cache: Bool,
+  silent: Bool,
 ) -> Result(pi.Package, error.Error) {
   let assert args.ParsedQuery(package, [main_module, ..sub], _item) = query
 
@@ -158,7 +159,7 @@ pub fn package_interface(
           "gleam_community_" <> result.unwrap(list.first(sub), "")
         None, module -> module
       }
-      |> get_cached_interface(cache_path, version, refresh_cache)
+      |> get_cached_interface(cache_path, version, refresh_cache, silent)
     }
   }
 }
@@ -194,6 +195,7 @@ fn get_cached_interface(
   cache_path: Option(String),
   version: Option(Version),
   refresh_cache: Bool,
+  silent: Bool,
 ) -> Result(pi.Package, error.Error) {
   use home_dir <- result.try(
     gleamyshell.home_directory()
@@ -210,7 +212,7 @@ fn get_cached_interface(
     // This means we have no cache for the package and need to resolve the version
     // from hexdocs. This requires parsing the interface, so we may as well only do it once.
     version.Unresolved as v -> {
-      use interface <- result.try(get_interface(package, v))
+      use interface <- result.try(get_interface(package, v, silent))
       use parsed <- result.try(parse_interface(interface))
 
       write_file(
@@ -235,7 +237,7 @@ fn get_cached_interface(
               error.FileError(file: interface_path, action: "delete", error:)
             }),
           )
-          get_interface(package, version)
+          get_interface(package, version, silent)
           |> result.try(write_file(_, cache_location, "package-interface.json"))
         }
         False, Ok(True) -> {
@@ -247,7 +249,7 @@ fn get_cached_interface(
         }
         _, _ -> {
           // Init cache
-          get_interface(package, version)
+          get_interface(package, version, silent)
           |> result.try(write_file(_, cache_location, "package-interface.json"))
         }
       }
@@ -261,6 +263,7 @@ fn get_cached_interface(
 fn get_interface(
   package: String,
   version: ResolvedVersion,
+  silent: Bool,
 ) -> Result(String, error.Error) {
   case simplifile.read("./gleam.toml") {
     Ok(config_file) -> {
@@ -289,29 +292,42 @@ fn get_interface(
             // In future, we could check if the local copy matches the version that
             // the user specified, but in most cases that won't be the case, and it
             // requires extra work, so for now we just pull from hex in that case.
-            True, _, version.Resolved(_) -> build_package_interface(".")
+            True, _, version.Resolved(_) -> build_package_interface(".", silent)
             False, True, version.Resolved(_) ->
-              build_package_interface("./build/packages/" <> package)
+              build_package_interface("./build/packages/" <> package, silent)
             _, _, _ ->
-              get_remote_interface(package, version |> version.to_option)
+              get_remote_interface(
+                package,
+                version |> version.to_option,
+                silent,
+              )
           }
         }
         Error(_) -> {
-          get_remote_interface(package, version |> version.to_option)
+          get_remote_interface(package, version |> version.to_option, silent)
         }
       }
     }
-    Error(_) -> get_remote_interface(package, version |> version.to_option)
+    Error(_) ->
+      get_remote_interface(package, version |> version.to_option, silent)
   }
 }
 
 /// Actually build package interface from source
 ///
-fn build_package_interface(path: String) -> Result(String, error.Error) {
-  let s =
-    spinner.spinning_spinner()
-    |> spinner.with_right_text(" Building docs")
-    |> spinner.spin
+fn build_package_interface(
+  path: String,
+  silent: Bool,
+) -> Result(String, error.Error) {
+  let s = case silent {
+    True -> None
+    False ->
+      Some(
+        spinner.spinning_spinner()
+        |> spinner.with_right_text(" Building docs")
+        |> spinner.spin,
+      )
+  }
 
   let interface_path = path <> "/package-interface.json"
 
@@ -332,7 +348,7 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
       error.FileError(file: interface_path, action: "cleanup built", error:)
     })
 
-  spinner.finish(s)
+  option.map(s, spinner.finish)
 
   interface
   |> result.replace_error(error.BuildError(
@@ -345,11 +361,17 @@ fn build_package_interface(path: String) -> Result(String, error.Error) {
 pub fn get_remote_interface(
   package: String,
   version: Option(Version),
+  silent: Bool,
 ) -> Result(String, error.Error) {
-  let s =
-    spinner.spinning_spinner()
-    |> spinner.with_right_text(" Pulling docs from Hex")
-    |> spinner.spin
+  let s = case silent {
+    True -> None
+    False ->
+      Some(
+        spinner.spinning_spinner()
+        |> spinner.with_right_text(" Pulling docs from Hex")
+        |> spinner.spin,
+      )
+  }
 
   let version_string = case version {
     Some(v) -> "/" <> version.to_string(v)
@@ -375,7 +397,7 @@ pub fn get_remote_interface(
     }),
   )
 
-  spinner.finish(s)
+  option.map(s, spinner.finish)
 
   // Make sure we don't cache data on 404 or other failed codes
   case resp.status {

@@ -33,12 +33,14 @@ fn gleamoire(args: args.Args) -> Result(String, error.Error) {
       print_raw:,
       refresh_cache:,
       package_version:,
+      silent:,
     ) -> {
       use interface <- result.try(package_interface(
         query,
         cache_path,
         package_version,
         refresh_cache,
+        silent,
       ))
       let ParsedQuery(_, module_path, item) = query
       use docs <- result.map(get_docs(interface, module_path, item, print_mode))

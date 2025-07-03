@@ -9,6 +9,7 @@ pub fn args_test() {
   let assert Ok(value) =
     args.parse_args([
       "-t", "lustre.Error", "-C", "~/.cache", "-r", "--raw", "-V", "2.1",
+      "--silent",
     ])
   assert value
     == args.Document(
@@ -22,6 +23,7 @@ pub fn args_test() {
       refresh_cache: True,
       print_raw: True,
       package_version: Some(Version(major: 2, minor: 1, patch: 0)),
+      silent: True,
     )
 }
 

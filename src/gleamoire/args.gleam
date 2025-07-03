@@ -14,6 +14,7 @@ pub type Args {
     package_version: Option(Version),
     refresh_cache: Bool,
     print_raw: Bool,
+    silent: Bool,
   )
 }
 
@@ -37,6 +38,7 @@ Flags:
 --cache, -C            Use a different cache location for package-interface.json
 --refresh, -r          Refresh the cache for the documented module, in case it is outdated
 --raw                  Prints raw text of documentation, without rendering markdown
+--silent               Prints the output without the progress spinner
 --package-version, -V  Document a specific version of a package"
 
 /// Parse a list of strings into structured arguments
@@ -54,6 +56,7 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
       query: None,
       package_version: None,
       cache_path: None,
+      silent: False,
     ),
   ))
   use print_mode <- result.try(case parsed.type_flag, parsed.value_flag {
@@ -72,6 +75,7 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
       refresh_cache:,
       package_version:,
       print_raw:,
+      silent:,
       ..,
     ) -> {
       use parsed_query <- result.try(parse_query(query))
@@ -86,6 +90,7 @@ pub fn parse_args(args: List(String)) -> Result(Args, error.Error) {
         refresh_cache:,
         print_raw:,
         package_version:,
+        silent:,
       ))
     }
     // Special case for `gleamoire -v`, in case the user was trying to specify --version
@@ -115,6 +120,7 @@ type ParsedArgs {
     cache_path: Option(String),
     package_version: Option(String),
     query: Option(String),
+    silent: Bool,
   )
 }
 
@@ -184,6 +190,11 @@ fn do_parse_args(
           case parsed.print_raw {
             True -> Error(error.InputError("Flags can only be specified once"))
             False -> Ok(ParsedArgs(..parsed, print_raw: True))
+          }
+        "--silent" ->
+          case parsed.silent {
+            True -> Error(error.InputError("Flags can only be specified once"))
+            False -> Ok(ParsedArgs(..parsed, silent: True))
           }
         _ ->
           case parsed.query {
