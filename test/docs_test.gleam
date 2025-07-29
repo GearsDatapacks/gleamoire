@@ -30,7 +30,7 @@ fn gleam_type(name: String) -> pi.Type {
   pi.Named(name:, package: "gleam", module: "gleam", parameters: [])
 }
 
-const implementations = pi.Implementations(True, False, False)
+const implementations = pi.Implementations(True, False, False, False, False)
 
 pub fn module_documentation_test() {
   render.document_module(
