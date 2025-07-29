@@ -9,6 +9,7 @@ import gleam/string
 import gleam_community/ansi
 
 pub fn render(md: String) -> String {
+  echo md
   let parsed = commonmark.parse(md)
   render_nodes(parsed.blocks, parsed.references)
 }

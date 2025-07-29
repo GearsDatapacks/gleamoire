@@ -167,7 +167,7 @@ pub fn package_interface(
 /// Parse a JSON string into a package_interface.Package
 ///
 pub fn parse_interface(json: String) -> Result(pi.Package, error.Error) {
-  json.decode(json, using: pi.decoder)
+  json.parse(json, using: pi.decoder())
   |> result.replace_error(error.UnexpectedError(
     "Failed to decode package-interface.json. Something went wrong during the build process.",
   ))
