@@ -1,3 +1,4 @@
+import directories
 import gleam/dict
 import gleam/http/request
 import gleam/httpc
@@ -12,14 +13,9 @@ import gleamoire/error
 import gleamoire/prelude
 import gleamoire/render.{document_item, document_module}
 import gleamoire/version.{type ResolvedVersion, type Version}
-import gleamyshell
 import glitzer/spinner
 import simplifile
 import tom
-
-/// Default location for cached package interfaces
-///
-const default_cache = ".cache/gleamoire"
 
 /// Default Hexdocs URL
 ///
@@ -197,16 +193,16 @@ fn get_cached_interface(
   refresh_cache: Bool,
   silent: Bool,
 ) -> Result(pi.Package, error.Error) {
-  use home_dir <- result.try(
-    gleamyshell.home_directory()
-    |> result.replace_error(error.UnexpectedError(
-      "Could not get the home directory",
-    )),
-  )
-  let cache_location =
-    option.unwrap(cache_path, home_dir <> "/" <> default_cache)
-    <> "/"
-    <> package
+  use cache_directory <- result.try(case cache_path {
+    Some(path) -> Ok(path)
+    None ->
+      directories.cache_dir()
+      |> result.replace_error(error.UnexpectedError(
+        "Could not get the cache directory",
+      ))
+  })
+
+  let cache_location = cache_directory <> "/" <> package
 
   case resolve_version(package, cache_location, version, refresh_cache) {
     // This means we have no cache for the package and need to resolve the version
