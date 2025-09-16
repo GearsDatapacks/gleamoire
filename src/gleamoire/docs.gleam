@@ -212,7 +212,11 @@ fn get_cached_interface(
     // This means we have no cache for the package and need to resolve the version
     // from hexdocs. This requires parsing the interface, so we may as well only do it once.
     version.Unresolved as v -> {
-      use interface <- result.try(get_interface(package, v, silent))
+      use interface <- result.try(get_remote_interface(
+        package,
+        version.to_option(v),
+        silent,
+      ))
       use parsed <- result.try(parse_interface(interface))
 
       write_file(
@@ -237,7 +241,7 @@ fn get_cached_interface(
               error.FileError(file: interface_path, action: "delete", error:)
             }),
           )
-          get_interface(package, version, silent)
+          get_remote_interface(package, version.to_option(version), silent)
           |> result.try(write_file(_, cache_location, "package-interface.json"))
         }
         False, Ok(True) -> {
@@ -249,111 +253,13 @@ fn get_cached_interface(
         }
         _, _ -> {
           // Init cache
-          get_interface(package, version, silent)
+          get_remote_interface(package, version.to_option(version), silent)
           |> result.try(write_file(_, cache_location, "package-interface.json"))
         }
       }
       |> result.try(parse_interface)
     }
   }
-}
-
-/// Decide to build interface from source or pull it from Hex
-///
-fn get_interface(
-  package: String,
-  version: ResolvedVersion,
-  silent: Bool,
-) -> Result(String, error.Error) {
-  case simplifile.read("./gleam.toml") {
-    Ok(config_file) -> {
-      use config <- result.try(
-        tom.parse(config_file)
-        |> result.replace_error(error.UnexpectedError(
-          "gleam.toml is malformed. Please ensure that you have a valid gleam.toml in your project",
-        )),
-      )
-      // The `dependencies` key is optional, so if it is not present we pull from hex
-      case tom.get_table(config, ["dependencies"]) {
-        Ok(dependencies) -> {
-          use current_package <- result.try(
-            tom.get_string(config, ["name"])
-            |> result.replace_error(error.UnexpectedError(
-              "gleam.toml is missing the 'name' key. Please ensure that you have a valid gleam.toml in your project",
-            )),
-          )
-
-          case
-            package == current_package,
-            dict.has_key(dependencies, package),
-            version
-          {
-            // If the user specified the version, we don't build the docs locally.
-            // In future, we could check if the local copy matches the version that
-            // the user specified, but in most cases that won't be the case, and it
-            // requires extra work, so for now we just pull from hex in that case.
-            True, _, version.Resolved(_) -> build_package_interface(".", silent)
-            False, True, version.Resolved(_) ->
-              build_package_interface("./build/packages/" <> package, silent)
-            _, _, _ ->
-              get_remote_interface(
-                package,
-                version |> version.to_option,
-                silent,
-              )
-          }
-        }
-        Error(_) -> {
-          get_remote_interface(package, version |> version.to_option, silent)
-        }
-      }
-    }
-    Error(_) ->
-      get_remote_interface(package, version |> version.to_option, silent)
-  }
-}
-
-/// Actually build package interface from source
-///
-fn build_package_interface(
-  path: String,
-  silent: Bool,
-) -> Result(String, error.Error) {
-  let s = case silent {
-    True -> None
-    False ->
-      Some(
-        spinner.spinning_spinner()
-        |> spinner.with_right_text(" Building docs")
-        |> spinner.spin,
-      )
-  }
-
-  let interface_path = path <> "/package-interface.json"
-
-  let _ =
-    gleamyshell.execute("gleam", in: path, args: [
-      "export", "package-interface", "--out", "package-interface.json",
-    ])
-
-  let interface =
-    simplifile.read(interface_path)
-    |> result.map_error(fn(error) {
-      error.FileError(file: interface_path, action: "read", error:)
-    })
-
-  let _ =
-    simplifile.delete(interface_path)
-    |> result.map_error(fn(error) {
-      error.FileError(file: interface_path, action: "cleanup built", error:)
-    })
-
-  option.map(s, spinner.finish)
-
-  interface
-  |> result.replace_error(error.BuildError(
-    "Unable to build interface at location " <> path,
-  ))
 }
 
 /// Pull docs from Hex
