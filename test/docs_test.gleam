@@ -497,3 +497,80 @@ pub fn document_prelude_item_test() {
     docs.get_docs(interface, module_path, item, args.Unspecified)
   birdie.snap(value, "Should document a gleam prelude item")
 }
+
+pub fn sorted_types_test() {
+  let value =
+    render.document_module(
+      "module",
+      pi.Module(
+        ..empty_module(),
+        types: [
+            #(
+              "MyType",
+              pi.TypeDefinition(
+                documentation: None,
+                deprecation: None,
+                parameters: 0,
+                constructors: [],
+              ),
+            ),
+            #(
+              "SomethingElse",
+              pi.TypeDefinition(
+                documentation: None,
+                deprecation: None,
+                parameters: 0,
+                constructors: [],
+              ),
+            ),
+            #(
+              "ADifferentType",
+              pi.TypeDefinition(
+                documentation: None,
+                deprecation: None,
+                parameters: 0,
+                constructors: [],
+              ),
+            ),
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+    )
+  birdie.snap(value, "Should print types in alphabetical order")
+}
+
+pub fn sorted_values_test() {
+  let value =
+    render.document_module(
+      "module",
+      pi.Module(
+        ..empty_module(),
+        functions: [
+            #(
+              "function",
+              pi.Function(
+                documentation: None,
+                deprecation: None,
+                implementations:,
+                parameters: [],
+                return: gleam_type("Nil"),
+              ),
+            ),
+            #(
+              "another_function",
+              pi.Function(
+                documentation: None,
+                deprecation: None,
+                implementations:,
+                parameters: [],
+                return: gleam_type("Nil"),
+              ),
+            ),
+          ]
+          |> dict.from_list,
+      ),
+      empty_package(),
+    )
+  birdie.snap(value, "Should print values in alphabetical order")
+}

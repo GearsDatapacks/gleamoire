@@ -1,0 +1,11 @@
+---
+version: 1.2.4
+title: Should print values in alphabetical order
+---
+# Help on module `module`:
+
+## Available items
+### Values
+- `another_function`
+- `function`
+

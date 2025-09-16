@@ -21,7 +21,7 @@ import tom
 ///
 const hexdocs_url = "https://hexdocs.pm/"
 
-/// Main entrypoint for docs retrival
+/// Main entrypoint for docs retrieval
 ///
 pub fn get_docs(
   interface: pi.Package,

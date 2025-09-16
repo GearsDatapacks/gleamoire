@@ -28,7 +28,9 @@ pub fn document_module(
     <> "`:\n\n"
     <> list_or_empty(
       "## Available submodules\n",
-      simple.submodules |> list.map(fn(mod) { "- `" <> mod <> "`" }),
+      simple.submodules
+        |> list.sort(string.compare)
+        |> list.map(fn(mod) { "- `" <> mod <> "`" }),
       "\n",
       "\n\n",
     )
@@ -37,13 +39,19 @@ pub fn document_module(
       [
         list_or_none(
           "### Types\n",
-          list.map(dict.keys(simple.types), fn(mod) { "- `" <> mod <> "`" }),
+          simple.types
+            |> dict.keys
+            |> list.sort(string.compare)
+            |> list.map(fn(type_) { "- `" <> type_ <> "`" }),
           "\n",
           "",
         ),
         list_or_none(
           "### Values\n",
-          list.map(dict.keys(simple.values), fn(mod) { "- `" <> mod <> "`" }),
+          simple.values
+            |> dict.keys
+            |> list.sort(string.compare)
+            |> list.map(fn(value) { "- `" <> value <> "`" }),
           "\n",
           "",
         ),
